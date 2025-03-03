@@ -4,7 +4,7 @@ function Home() {
     return (
         <>
             <Center>
-                <Title>S.H.A.G. Photos</Title>
+                <Title>Not Google Photos</Title>
             </Center>
         </>
     )
