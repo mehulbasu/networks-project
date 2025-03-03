@@ -1,0 +1,36 @@
+version: '3.4'
+
+services:
+  researchproject:
+    image: researchproject
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+      platforms: 
+        - linux/amd64
+        - linux/arm64
+    environment:
+      NODE_ENV: production
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: compsci640
+      POSTGRES_DB: imagedb
+      POSTGRES_HOST: postgres
+    ports:
+      - 3000:3000
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: compsci640
+      POSTGRES_DB: imagedb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+volumes:
+  postgres_data:
