@@ -24,12 +24,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/', indexRouter);
 // app.use('/users', usersRouter);
 
+const dbUtils = require('./utils/db');
+
 app.post('/users', async (req, res) => {
   try {
-      // const { username, filepath } = req.body;
-      // await dbUtils.createUserTable(username);
-      // const result = await dbUtils.addUser(username, filepath);
-      // res.json(result.rows[0]);
+      const { username, filepath } = req.body;
+      await dbUtils.createUserTable(username);
+      const result = await dbUtils.addUser(username, filepath);
+      res.json(result.rows[0]);
       res.json({ message: 'User created' });
       console.log('User created');
   } catch (err) {
