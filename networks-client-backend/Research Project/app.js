@@ -22,7 +22,20 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
-app.use('/users', usersRouter);
+// app.use('/users', usersRouter);
+
+app.post('/users', async (req, res) => {
+  try {
+      // const { username, filepath } = req.body;
+      // await dbUtils.createUserTable(username);
+      // const result = await dbUtils.addUser(username, filepath);
+      // res.json(result.rows[0]);
+      res.json({ message: 'User created' });
+      console.log('User created');
+  } catch (err) {
+      res.status(500).json({ error: err.message });
+  }
+});
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

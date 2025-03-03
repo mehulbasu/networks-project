@@ -3,16 +3,17 @@ const router = express.Router();
 const dbUtils = require('../utils/db');
 
 // Create new user
-router.post('/users', async (req, res) => {
-    try {
-        const { username, filepath } = req.body;
-        await dbUtils.createUserTable(username);
-        const result = await dbUtils.addUser(username, filepath);
-        res.json(result.rows[0]);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
+// router.post('/users', async (req, res) => {
+//     try {
+//         // const { username, filepath } = req.body;
+//         // await dbUtils.createUserTable(username);
+//         // const result = await dbUtils.addUser(username, filepath);
+//         // res.json(result.rows[0]);
+//         res.json({ message: 'User created' });
+//     } catch (err) {
+//         res.status(500).json({ error: err.message });
+//     }
+// });
 
 // Add image to user's table
 router.post('/images/:username', async (req, res) => {
