@@ -4,12 +4,7 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 
-var indexRouter = require('./routes/index');
-var usersRouter = require('./routes/users');
-
 var app = express();
-
-var databaseRouter = require('./routes/database');
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -21,8 +16,10 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.use('/', indexRouter);
-// app.use('/users', usersRouter);
+/* GET home page. */
+app.get('/', function(req, res, next) {
+  res.render('index', { title: 'Express' });
+});
 
 const dbUtils = require('./utils/db');
 
@@ -30,10 +27,33 @@ app.post('/users', async (req, res) => {
   try {
       const { username, filepath } = req.body;
       await dbUtils.createUserTable(username);
+      console.log('Awaiting user table creation');
       const result = await dbUtils.addUser(username, filepath);
-      res.json(result.rows[0]);
-      res.json({ message: 'User created' });
+      res.json({ message: 'User created', user: result.rows[0] }); // Combine the responses into one
       console.log('User created');
+  } catch (err) {
+      res.status(500).json({ error: err.message });
+  }
+});
+
+// Add image to user's table
+app.post('/images/:username', async (req, res) => {
+  try {
+      const { username } = req.params;
+      const { fileName, dateTaken, location } = req.body;
+      const result = await dbUtils.addImage(username, fileName, dateTaken, location);
+      res.json(result.rows[0]);
+  } catch (err) {
+      res.status(500).json({ error: err.message });
+  }
+});
+
+// Get user's images
+app.get('/images/:username', async (req, res) => {
+  try {
+      const { username } = req.params;
+      const result = await dbUtils.getUserImages(username);
+      res.json(result.rows);
   } catch (err) {
       res.status(500).json({ error: err.message });
   }
@@ -54,7 +74,5 @@ app.use(function(err, req, res, next) {
   res.status(err.status || 500);
   res.render('error');
 });
-
-app.use('/api/db', databaseRouter);
 
 module.exports = app;
