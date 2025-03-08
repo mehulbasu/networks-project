@@ -28,6 +28,7 @@ app.post('/users', async (req, res) => {
       const { username, filepath } = req.body;
       await dbUtils.createUserTable(username);
       console.log('Awaiting user table creation');
+      //TODO: Generate filepath to use for new user
       const result = await dbUtils.addUser(username, filepath);
       res.json({ message: 'User created', user: result.rows[0] }); // Combine the responses into one
       console.log('User created');
@@ -58,6 +59,8 @@ app.get('/images/:username', async (req, res) => {
       res.status(500).json({ error: err.message });
   }
 });
+
+//TODO: Add GET for single image
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
