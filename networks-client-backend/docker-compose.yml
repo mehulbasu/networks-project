@@ -12,7 +12,7 @@ services:
     volumes:
       - type: bind
         source: ${IMAGE_STORAGE_PATH}
-        target: /usr/src/app/uploads
+        target: /usr/src/app/images
     environment:
       NODE_ENV: production
       POSTGRES_USER: postgres
@@ -23,7 +23,6 @@ services:
       - 3000:3000
     depends_on:
       - postgres
-      - fileserver
 
   # fileserver:
   #   build:
@@ -32,9 +31,9 @@ services:
   #   volumes:
   #     - type: bind
   #       source: ${IMAGE_STORAGE_PATH}
-  #       target: /usr/src/app/uploads
+  #       target: /usr/src/app/images
   #   environment:
-  #     UPLOAD_FOLDER: /usr/src/app/uploads
+  #     UPLOAD_FOLDER: /usr/src/app/images
   #   ports:
   #     - "5000:5000"
 
