@@ -1,4 +1,5 @@
-import { Container, Center, Title } from '@mantine/core';
+import { Container, Title } from '@mantine/core';
+import Auth from './Auth/Auth';
 import './Home.scss';
 
 // TODO: Navbar
@@ -6,9 +7,8 @@ function Home() {
     return (
         <>
             <Container className='page-container'>
-                <Center>
-                    <Title>Welcome to Flix</Title>
-                </Center>
+                <Title ta='center'>Welcome to Flix</Title>
+                <Auth />
             </Container>
         </>
     )
