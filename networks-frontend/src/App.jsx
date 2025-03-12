@@ -1,12 +1,14 @@
-// Import styles of packages that you've installed.
-// All packages except `@mantine/hooks` require styles imports
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import '@mantine/core/styles.css';
-import Home from './components/Home'
-
 import { MantineProvider } from '@mantine/core';
+import Home from './components/Home'
 
 export default function App() {
   return <MantineProvider>
-    <Home/>
+    <Router>
+      <Routes>
+        <Route path="/" element={<Home />} />
+      </Routes>
+    </Router>
   </MantineProvider>;
 }
