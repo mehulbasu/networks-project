@@ -1,11 +1,15 @@
-import { Center, Title } from '@mantine/core';
+import { Container, Center, Title } from '@mantine/core';
+import './Home.scss';
 
+// TODO: Navbar
 function Home() {
     return (
         <>
-            <Center>
-                <Title>Not Google Photos</Title>
-            </Center>
+            <Container className='page-container'>
+                <Center>
+                    <Title>Welcome to Flix</Title>
+                </Center>
+            </Container>
         </>
     )
 }
