@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Text, Container } from '@mantine/core';
 import {
     createUserWithEmailAndPassword,
@@ -9,11 +9,13 @@ import {
 } from 'firebase/auth';
 import { useForm } from '@mantine/form';
 import { auth } from '../../utils/firebase';
+import { useNavigate } from 'react-router-dom';
+import { onAuthStateChanged } from 'firebase/auth';
 import ResetEmailForm from './ResetEmailForm';
 import SignupLoginForm from './SignupLoginForm';
 import './Auth.scss';
 
-// TODO: Navigate after auth
+// TODO: Add logout to navbar
 /**
  * Renders modals with a form for signing up, logging in, or resetting password
  */
@@ -22,6 +24,20 @@ function Auth() {
     const [reset, setReset] = useState(false);
     const [emailSent, setEmailSent] = useState(false);
     const [authCompleted, setAuthCompleted] = useState(false);
+    const navigate = useNavigate();
+
+    // TODO: Move to context
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            if (user && authCompleted) {
+                console.log("Auth state changed, user is signed in");
+                navigate('/dashboard');
+            }
+        });
+        
+        // Cleanup subscription
+        return () => unsubscribe();
+    }, [authCompleted, navigate]);
 
     // Form for email and password signing up or logging in
     const credentials = useForm({
@@ -58,6 +74,7 @@ function Auth() {
             await (exists
                 ? signInWithEmailAndPassword(auth, email, password)
                 : createUserWithEmailAndPassword(auth, email, password));
+            console.log('User signed in');
         } catch (error) {
             // Setting errors to 'credentials' form fields
             setAuthCompleted(false);
