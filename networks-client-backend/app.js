@@ -6,7 +6,7 @@ var logger = require('morgan');
 
 var app = express();
 
-var axios = require('axios');
+// var axios = require('axios');
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -44,6 +44,7 @@ app.post('/images/:username', async (req, res) => {
   try {
       const { username } = req.params;
       const { fileName, dateTaken, location } = req.body;
+      //TODO: Generate filepath to use for new image, and handle conflicts. Return changed filename after conflict handling
       const result = await dbUtils.addImage(username, fileName, dateTaken, location);
       res.json(result.rows[0]);
   } catch (err) {
