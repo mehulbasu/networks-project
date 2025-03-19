@@ -1,11 +1,16 @@
-import { Container, Title } from '@mantine/core';
+import { Container, Title, Divider, Stack } from '@mantine/core';
+import UploadButton from './UploadButton';
 import './Dashboard.scss';
 
 function Dashboard() {
     return (
         <>
             <Container className='page-container'>
-                <Title ta='center'>Flix - Dashboard</Title>
+                <Stack spacing='xl'>
+                    <Title ta='center'>Flix</Title>
+                    <UploadButton />
+                    <Divider />
+                </Stack>
             </Container>
         </>
     )
