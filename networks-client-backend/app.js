@@ -24,13 +24,14 @@ app.get('/', function(req, res, next) {
 });
 
 const dbUtils = require('./utils/db');
-
+IMAGE_STORAGE_PATH = '/usr/src/app/images';
 app.post('/users', async (req, res) => {
   try {
-      const { username, filepath } = req.body;
-      await dbUtils.createUserTable(username);
+      const { userID } = req.body;
+      await dbUtils.createUserTable(userID);
       console.log('Awaiting user table creation');
       //TODO: Generate filepath to use for new user
+      filepath = IMAGE_STORAGE_PATH + '/' + userID;
       const result = await dbUtils.addUser(username, filepath);
       res.json({ message: 'User created', user: result.rows[0] }); // Combine the responses into one
       console.log('User created');
