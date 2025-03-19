@@ -4,6 +4,8 @@ WORKDIR /usr/src/app
 
 COPY server.py .
 
-RUN pip install flask
+RUN pip install flask && \
+    mkdir -p /usr/src/app/images && \
+    mkdir -p /usr/src/app/temp_uploads
 
 CMD ["python", "server.py"]
