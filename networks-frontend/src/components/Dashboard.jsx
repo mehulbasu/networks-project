@@ -1,4 +1,4 @@
-import { Container, Title, Divider, Stack, Button } from '@mantine/core';
+import { Container, Title, Divider, Stack, Group, Button } from '@mantine/core';
 import { auth } from '../utils/firebase';
 import UploadButton from './UploadButton';
 import './Dashboard.scss';
@@ -16,7 +16,9 @@ function Dashboard() {
     return (
         <>
             <Container className='page-container'>
-                <Button onClick={signOut}>Log Out</Button>
+                <Group justify="flex-end" mb="md">
+                    <Button variant='light' color='red' onClick={signOut}>Log Out</Button>
+                </Group>
                 <Stack spacing='xl'>
                     <Title ta='center'>Flix</Title>
                     <UploadButton />
