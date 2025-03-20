@@ -1,6 +1,7 @@
-import { Container, Title, Divider, Stack, Group, Button } from '@mantine/core';
+import { Container, Title, Divider, Stack, Group, Button, Space } from '@mantine/core';
 import { auth } from '../utils/firebase';
 import UploadButton from './UploadButton';
+import GalleryView from './Gallery/GalleryView';
 import './Dashboard.scss';
 
 function Dashboard() {
@@ -22,7 +23,10 @@ function Dashboard() {
                 <Stack spacing='xl'>
                     <Title ta='center'>Flix</Title>
                     <UploadButton />
-                    <Divider />
+                    <Space h="md" />
+                    <Divider label='Gallery'/>
+                    <Space h="md" />
+                    <GalleryView />
                 </Stack>
             </Container>
         </>
