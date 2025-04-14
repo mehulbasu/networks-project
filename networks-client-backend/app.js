@@ -32,7 +32,7 @@ app.post('/users', async (req, res) => {
       console.log('Awaiting user table creation');
       //TODO: Generate filepath to use for new user
       filepath = IMAGE_STORAGE_PATH + '/' + userID;
-      const result = await dbUtils.addUser(username, filepath);
+      const result = await dbUtils.addUser(userID, filepath);
       res.json({ message: 'User created', user: result.rows[0] }); // Combine the responses into one
       console.log('User created');
   } catch (err) {
