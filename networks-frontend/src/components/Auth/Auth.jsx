@@ -31,10 +31,19 @@ function Auth() {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             if (user && authCompleted) {
                 console.log("Auth state changed, user is signed in");
+                // FIXME: Only call this if signing up not logging in
+                // For the demo, it is being called regardless for both
+                fetch('http://localhost:3000/users', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ userID: auth.currentUser.uid }),
+                });
                 navigate('/dashboard');
             }
         });
-        
+
         // Cleanup subscription
         return () => unsubscribe();
     }, [authCompleted, navigate]);

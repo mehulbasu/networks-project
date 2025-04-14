@@ -3,7 +3,7 @@ const db = require('../config/database');
 const dbUtils = {
     async createUserTable(username) {
         const query = `
-            CREATE TABLE IF NOT EXISTS ${username} (
+            CREATE TABLE IF NOT EXISTS user_${username} (
                 ImageId SERIAL PRIMARY KEY,
                 FileName TEXT,
                 DateUploaded DATE,

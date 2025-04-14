@@ -3,13 +3,16 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
+var cors = require('cors');
 
 var app = express();
+
+// var axios = require('axios');
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'jade');
-
+app.use(cors());
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -22,14 +25,15 @@ app.get('/', function(req, res, next) {
 });
 
 const dbUtils = require('./utils/db');
-
+IMAGE_STORAGE_PATH = '/usr/src/app/images';
 app.post('/users', async (req, res) => {
   try {
-      const { username, filepath } = req.body;
-      await dbUtils.createUserTable(username);
+      const { userID } = req.body;
+      await dbUtils.createUserTable(userID);
       console.log('Awaiting user table creation');
       //TODO: Generate filepath to use for new user
-      const result = await dbUtils.addUser(username, filepath);
+      filepath = IMAGE_STORAGE_PATH + '/' + userID;
+      const result = await dbUtils.addUser(userID, filepath);
       res.json({ message: 'User created', user: result.rows[0] }); // Combine the responses into one
       console.log('User created');
   } catch (err) {
@@ -42,6 +46,7 @@ app.post('/images/:username', async (req, res) => {
   try {
       const { username } = req.params;
       const { fileName, dateTaken, location } = req.body;
+      //TODO: Generate filepath to use for new image, and handle conflicts. Return changed filename after conflict handling
       const result = await dbUtils.addImage(username, fileName, dateTaken, location);
       res.json(result.rows[0]);
   } catch (err) {
