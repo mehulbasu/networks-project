@@ -2,8 +2,10 @@ FROM python:3.9-slim
 
 WORKDIR /usr/src/app
 
-COPY server.py .
+COPY ftp_server.py .
 
-RUN pip install flask
+RUN pip install flask && \
+    mkdir -p /usr/src/app/images && \
+    mkdir -p /usr/src/app/temp_uploads
 
-CMD ["python", "server.py"]
+CMD ["python", "ftp_server.py"]
