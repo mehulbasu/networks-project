@@ -1,24 +1,26 @@
 import socket
 import os
 
-SERVER_IP = "192.168.0.226"  # Replace with the server's IP address
+SERVER_IP = "192.168.0.104"  # Replace with the server's IP address
 PORT = 2121
+
 
 def send_command(sock, command):
     sock.send(command.encode())
+
 
 def upload_file(sock, filename):
     try:
         with open(filename, "rb") as f:
             # Get file size
             file_size = os.path.getsize(filename)
-            
+
             # Send upload command with filename
             sock.send(f"UPLOAD {filename}".encode())
-            
+
             # Send file size
             sock.send(str(file_size).encode())
-            
+
             # Wait for server ready
             response = sock.recv(1024).decode()
             if response == "READY":
@@ -35,12 +37,13 @@ def upload_file(sock, filename):
     except FileNotFoundError:
         print("File not found!")
 
+
 def download_file(sock, filename):
     sock.send(f"DOWNLOAD {filename}".encode())
-    
+
     # Receive file size
     file_size = int(sock.recv(1024).decode())
-    
+
     if file_size >= 0:
         sock.send(b"READY")
         bytes_received = 0
@@ -55,6 +58,7 @@ def download_file(sock, filename):
         print("Download complete!")
     else:
         print("File not found on server!")
+
 
 def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -84,6 +88,7 @@ def main():
             print("Invalid command!")
 
     sock.close()
+
 
 if __name__ == "__main__":
     main()
