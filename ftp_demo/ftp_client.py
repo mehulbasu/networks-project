@@ -127,9 +127,6 @@ def download_all_files(sock, directory=CLIENT_FILES_DIR):
         print(f"Downloading {filename}...")
         download_file(sock, filename, directory)
 
-# Upload and download files to/from a specific directory on the server
-# This section is similar to the above functions but allows specifying a server directory
-
 
 def upload_file_to_server_dir(sock, server_directory, filename, local_directory=None):
     """Upload a file to a specific directory on the server"""
@@ -259,252 +256,266 @@ def download_thumbnails_from_server_dir(sock, server_directory, local_directory=
     # Send command to request thumbnails
     send_command(sock, f"DOWNLOAD_THUMBNAILS_FROM {server_directory}")
 
-    # Get number of thumbnail files
-    num_files = int(sock.recv(1024).decode())
-    if num_files == 0:
-        print(f"No thumbnail files found in server directory '{server_directory}'")
-        return
+    try:
+        # Get number of thumbnail files
+        response = sock.recv(1024).decode()
+        # Check if server returned an error message
+        if "Invalid" in response or "Error" in response:
+            print(f"Server error: {response}")
+            return
+            
+        num_files = int(response)
+        if num_files == 0:
+            print(f"No thumbnail files found in server directory '{server_directory}'")
+            return
 
-    print(f"Found {num_files} thumbnail files to download")
-    sock.send(b"READY")
-
-    for _ in range(num_files):
-        # Get filename and size
-        file_info = sock.recv(1024).decode().split(":")
-        filename, file_size = file_info[0], int(file_info[1])
-
-        print(f"Downloading thumbnail {filename}...")
+        print(f"Found {num_files} thumbnail files to download")
         sock.send(b"READY")
 
-        filepath = os.path.join(local_directory, filename)
-        bytes_received = 0
-        with open(filepath, "wb") as f:
-            while bytes_received < file_size:
-                bytes_to_read = min(4096, file_size - bytes_received)
-                data = sock.recv(bytes_to_read)
-                if not data:
-                    break
-                f.write(data)
-                bytes_received += len(data)
+        for _ in range(num_files):
+            # Get filename and size
+            file_info = sock.recv(1024).decode().split(":")
+            filename, file_size = file_info[0], int(file_info[1])
 
-        sock.send(b"NEXT")
+            print(f"Downloading thumbnail {filename}...")
+            sock.send(b"READY")
 
-    print(sock.recv(1024).decode())
+            filepath = os.path.join(local_directory, filename)
+            bytes_received = 0
+            with open(filepath, "wb") as f:
+                while bytes_received < file_size:
+                    bytes_to_read = min(4096, file_size - bytes_received)
+                    data = sock.recv(bytes_to_read)
+                    if not data:
+                        break
+                    f.write(data)
+                    bytes_received += len(data)
+
+            sock.send(b"NEXT")
+
+        print(sock.recv(1024).decode())
+    except ValueError as e:
+        print(f"Error processing server response: {e}")
+    except Exception as e:
+        print(f"Error during thumbnail download: {e}")
 
 
 def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((SERVER_IP, PORT))
-    print(sock.recv(1024).decode())
+    try:
+        sock.connect((SERVER_IP, PORT))
+        print(sock.recv(1024).decode())
 
-    while True:
-        command = input("ftp> ").strip()
+        while True:
+            command = input("ftp> ").strip()
 
-        if command.startswith("LIST"):
-            parts = command.split(" ", 1)
-            if len(parts) > 1:
-                server_dir = parts[1]
-                send_command(sock, f"LIST {server_dir}")
-            else:
-                send_command(sock, "LIST")
-            print(sock.recv(4096).decode())
+            # Process most specific commands first, then more general ones
+            if command.startswith("DOWNLOAD_THUMBNAILS_FROM"):
+                # Format: DOWNLOAD_THUMBNAILS_FROM server_dir [local_dir]
+                parts = command.split(" ", 2)
+                if len(parts) >= 2:
+                    server_dir = parts[1]
+                    local_dir = parts[2] if len(parts) > 2 else CLIENT_FILES_DIR
+                    download_thumbnails_from_server_dir(sock, server_dir, local_dir)
+                else:
+                    print("Usage: DOWNLOAD_THUMBNAILS_FROM <server_dir> [local_dir]")
+            
+            elif command.startswith("DOWNLOAD_ALL_FROM"):
+                # Format: DOWNLOAD_ALL_FROM server_dir [local_dir]
+                parts = command.split(" ", 2)
+                if len(parts) >= 2:
+                    server_dir = parts[1]
+                    local_dir = parts[2] if len(parts) > 2 else CLIENT_FILES_DIR
 
-        elif command.startswith("UPLOAD_ALL_TO"):
-            # Format: UPLOAD_ALL_TO server_dir [local_dir]
-            parts = command.split(" ", 2)
-            if len(parts) >= 2:
-                server_dir = parts[1]
-                local_dir = parts[2] if len(parts) > 2 else CLIENT_FILES_DIR
+                    if not os.path.exists(local_dir):
+                        os.makedirs(local_dir)
 
-                try:
-                    # Get list of files
-                    files = [f for f in os.listdir(local_dir) if os.path.isfile(
-                        os.path.join(local_dir, f))]
-                    if not files:
-                        print(f"No files found in '{local_dir}'")
+                    send_command(sock, f"DOWNLOAD_ALL_FROM {server_dir}")
+
+                    # Get number of files
+                    num_files = int(sock.recv(1024).decode())
+                    if num_files == 0:
+                        print(f"No files found in server directory '{server_dir}'")
                         continue
 
-                    send_command(sock, f"UPLOAD_ALL_TO {server_dir}")
+                    print(f"Found {num_files} files to download")
+                    sock.send(b"READY")
 
-                    # Send number of files
-                    sock.send(str(len(files)).encode())
-                    # Wait for server ready
-                    response = sock.recv(1024).decode()
+                    for _ in range(num_files):
+                        # Get filename and size
+                        file_info = sock.recv(1024).decode().split(":")
+                        filename, file_size = file_info[0], int(file_info[1])
 
-                    for filename in files:
+                        print(f"Downloading {filename}...")
+                        sock.send(b"READY")
+
                         filepath = os.path.join(local_dir, filename)
-                        file_size = os.path.getsize(filepath)
+                        bytes_received = 0
+                        with open(filepath, "wb") as f:
+                            while bytes_received < file_size:
+                                bytes_to_read = min(
+                                    4096, file_size - bytes_received)
+                                data = sock.recv(bytes_to_read)
+                                if not data:
+                                    break
+                                f.write(data)
+                                bytes_received += len(data)
 
-                        # Send filename and size
-                        sock.send(f"{filename}:{file_size}".encode())
+                        sock.send(b"NEXT")
+
+                    print(sock.recv(1024).decode())
+                else:
+                    print("Usage: DOWNLOAD_ALL_FROM <server_dir> [local_dir]")
+
+            elif command.startswith("DOWNLOAD_FROM"):
+                # Format: DOWNLOAD_FROM server_dir filename [-d local_dir]
+                parts = command.split()
+                if len(parts) >= 3:
+                    server_dir = parts[1]
+                    if "-d" in parts:
+                        d_index = parts.index("-d")
+                        if d_index + 1 < len(parts):
+                            local_dir = parts[d_index + 1]
+                            filename = " ".join(parts[2:d_index])
+                            download_file_from_server_dir(
+                                sock, server_dir, filename, local_dir)
+                        else:
+                            print("Missing directory after -d flag")
+                    else:
+                        filename = " ".join(parts[2:])
+                        download_file_from_server_dir(sock, server_dir, filename)
+                else:
+                    print(
+                        "Usage: DOWNLOAD_FROM <server_dir> <filename> [-d <local_dir>]")
+
+            elif command.startswith("DOWNLOAD_ALL"):
+                parts = command.split(" ", 1)
+                directory = parts[1] if len(parts) > 1 else CLIENT_FILES_DIR
+                download_all_files(sock, directory)
+
+            elif command.startswith("UPLOAD_ALL_TO"):
+                # Format: UPLOAD_ALL_TO server_dir [local_dir]
+                parts = command.split(" ", 2)
+                if len(parts) >= 2:
+                    server_dir = parts[1]
+                    local_dir = parts[2] if len(parts) > 2 else CLIENT_FILES_DIR
+
+                    try:
+                        # Get list of files
+                        files = [f for f in os.listdir(local_dir) if os.path.isfile(
+                            os.path.join(local_dir, f))]
+                        if not files:
+                            print(f"No files found in '{local_dir}'")
+                            continue
+
+                        send_command(sock, f"UPLOAD_ALL_TO {server_dir}")
+
+                        # Send number of files
+                        sock.send(str(len(files)).encode())
                         # Wait for server ready
                         response = sock.recv(1024).decode()
 
-                        print(f"Uploading {filename}...")
-                        with open(filepath, "rb") as f:
-                            while chunk := f.read(4096):
-                                sock.send(chunk)
+                        for filename in files:
+                            filepath = os.path.join(local_dir, filename)
+                            file_size = os.path.getsize(filepath)
 
-                        # Wait for next file signal
-                        response = sock.recv(1024).decode()
+                            # Send filename and size
+                            sock.send(f"{filename}:{file_size}".encode())
+                            # Wait for server ready
+                            response = sock.recv(1024).decode()
 
-                    print(sock.recv(1024).decode())
-                except FileNotFoundError:
-                    print(f"Directory '{local_dir}' not found!")
-                except PermissionError:
-                    print(f"Permission denied for directory '{local_dir}'")
-            else:
-                print("Usage: UPLOAD_ALL_TO <server_dir> [local_dir]")
+                            print(f"Uploading {filename}...")
+                            with open(filepath, "rb") as f:
+                                while chunk := f.read(4096):
+                                    sock.send(chunk)
 
-        elif command.startswith("DOWNLOAD_ALL_FROM"):
-            # Format: DOWNLOAD_ALL_FROM server_dir [local_dir]
-            parts = command.split(" ", 2)
-            if len(parts) >= 2:
-                server_dir = parts[1]
-                local_dir = parts[2] if len(parts) > 2 else CLIENT_FILES_DIR
+                            # Wait for next file signal
+                            response = sock.recv(1024).decode()
 
-                if not os.path.exists(local_dir):
-                    os.makedirs(local_dir)
+                        print(sock.recv(1024).decode())
+                    except FileNotFoundError:
+                        print(f"Directory '{local_dir}' not found!")
+                    except PermissionError:
+                        print(f"Permission denied for directory '{local_dir}'")
+                else:
+                    print("Usage: UPLOAD_ALL_TO <server_dir> [local_dir]")
 
-                send_command(sock, f"DOWNLOAD_ALL_FROM {server_dir}")
+            elif command.startswith("UPLOAD_TO"):
+                # Format: UPLOAD_TO server_dir filename [-d local_dir]
+                parts = command.split()
+                if len(parts) >= 3:
+                    server_dir = parts[1]
+                    if "-d" in parts:
+                        d_index = parts.index("-d")
+                        if d_index + 1 < len(parts):
+                            local_dir = parts[d_index + 1]
+                            filename = " ".join(parts[2:d_index])
+                            upload_file_to_server_dir(
+                                sock, server_dir, filename, local_dir)
+                        else:
+                            print("Missing directory after -d flag")
+                    else:
+                        filename = " ".join(parts[2:])
+                        upload_file_to_server_dir(sock, server_dir, filename)
+                else:
+                    print(
+                        "Usage: UPLOAD_TO <server_dir> <filename> [-d <local_dir>]")
 
-                # Get number of files
-                num_files = int(sock.recv(1024).decode())
-                if num_files == 0:
-                    print(f"No files found in server directory '{server_dir}'")
-                    continue
+            elif command.startswith("UPLOAD_ALL"):
+                parts = command.split(" ", 1)
+                directory = parts[1] if len(parts) > 1 else CLIENT_FILES_DIR
+                upload_all_files(sock, directory)
 
-                print(f"Found {num_files} files to download")
-                sock.send(b"READY")
+            elif command.startswith("LIST"):
+                parts = command.split(" ", 1)
+                if len(parts) > 1:
+                    server_dir = parts[1]
+                    send_command(sock, f"LIST {server_dir}")
+                else:
+                    send_command(sock, "LIST")
+                print(sock.recv(4096).decode())
 
-                for _ in range(num_files):
-                    # Get filename and size
-                    file_info = sock.recv(1024).decode().split(":")
-                    filename, file_size = file_info[0], int(file_info[1])
-
-                    print(f"Downloading {filename}...")
-                    sock.send(b"READY")
-
-                    filepath = os.path.join(local_dir, filename)
-                    bytes_received = 0
-                    with open(filepath, "wb") as f:
-                        while bytes_received < file_size:
-                            bytes_to_read = min(
-                                4096, file_size - bytes_received)
-                            data = sock.recv(bytes_to_read)
-                            if not data:
-                                break
-                            f.write(data)
-                            bytes_received += len(data)
-
-                    sock.send(b"NEXT")
-
+            elif command == "QUIT":
+                send_command(sock, "QUIT")
                 print(sock.recv(1024).decode())
-            else:
-                print("Usage: DOWNLOAD_ALL_FROM <server_dir> [local_dir]")
+                break
 
-        elif command.startswith("UPLOAD_ALL"):
-            parts = command.split(" ", 1)
-            directory = parts[1] if len(parts) > 1 else CLIENT_FILES_DIR
-            upload_all_files(sock, directory)
-
-        elif command.startswith("DOWNLOAD_ALL"):
-            parts = command.split(" ", 1)
-            directory = parts[1] if len(parts) > 1 else CLIENT_FILES_DIR
-            download_all_files(sock, directory)
-
-        elif command.startswith("UPLOAD_TO"):
-            # Format: UPLOAD_TO server_dir filename [-d local_dir]
-            parts = command.split()
-            if len(parts) >= 3:
-                server_dir = parts[1]
-                if "-d" in parts:
-                    d_index = parts.index("-d")
-                    if d_index + 1 < len(parts):
-                        local_dir = parts[d_index + 1]
-                        filename = " ".join(parts[2:d_index])
-                        upload_file_to_server_dir(
-                            sock, server_dir, filename, local_dir)
-                    else:
-                        print("Missing directory after -d flag")
-                else:
-                    filename = " ".join(parts[2:])
-                    upload_file_to_server_dir(sock, server_dir, filename)
-            else:
+            elif command == "HELP":
+                print("Available commands:")
                 print(
-                    "Usage: UPLOAD_TO <server_dir> <filename> [-d <local_dir>]")
-
-        elif command.startswith("DOWNLOAD_FROM"):
-            # Format: DOWNLOAD_FROM server_dir filename [-d local_dir]
-            parts = command.split()
-            if len(parts) >= 3:
-                server_dir = parts[1]
-                if "-d" in parts:
-                    d_index = parts.index("-d")
-                    if d_index + 1 < len(parts):
-                        local_dir = parts[d_index + 1]
-                        filename = " ".join(parts[2:d_index])
-                        download_file_from_server_dir(
-                            sock, server_dir, filename, local_dir)
-                    else:
-                        print("Missing directory after -d flag")
-                else:
-                    filename = " ".join(parts[2:])
-                    download_file_from_server_dir(sock, server_dir, filename)
-            else:
+                    "  LIST [server_dir] - List files on server (optionally in specific directory)")
                 print(
-                    "Usage: DOWNLOAD_FROM <server_dir> <filename> [-d <local_dir>]")
-                
-        elif command.startswith("DOWNLOAD_THUMBNAILS_FROM"):
-            # Format: DOWNLOAD_THUMBNAILS_FROM server_dir [local_dir]
-            parts = command.split(" ", 2)
-            if len(parts) >= 2:
-                server_dir = parts[1]
-                local_dir = parts[2] if len(parts) > 2 else CLIENT_FILES_DIR
-                download_thumbnails_from_server_dir(sock, server_dir, local_dir)
+                    "  UPLOAD_TO <server_dir> <filename> - Upload to specified server directory")
+                print(
+                    "  UPLOAD_TO <server_dir> <filename> -d <local_dir> - Upload from local dir to server dir")
+                print(
+                    "  DOWNLOAD_FROM <server_dir> <filename> - Download from specified server directory")
+                print(
+                    "  DOWNLOAD_FROM <server_dir> <filename> -d <local_dir> - Download from server to local dir")
+                print(
+                    "  UPLOAD_ALL [local_dir] - Upload all files from local directory (default: client_files)")
+                print(
+                    "  DOWNLOAD_ALL [local_dir] - Download all files to local directory (default: client_files)")
+                print(
+                    "  UPLOAD_ALL_TO <server_dir> [local_dir] - Upload all files to server directory")
+                print(
+                    "  DOWNLOAD_ALL_FROM <server_dir> [local_dir] - Download all files from server directory")
+                print(
+                    "  DOWNLOAD_THUMBNAILS_FROM <server_dir> [local_dir] - Download all thumbnails from server directory")
+                print("  HELP - Show this help message")
+                print("  QUIT - Exit the FTP client")
+
             else:
-                print("Usage: DOWNLOAD_THUMBNAILS_FROM <server_dir> [local_dir]")
+                print("Invalid command! Type HELP for available commands.")
 
-        elif command == "QUIT":
-            send_command(sock, "QUIT")
-            print(sock.recv(1024).decode())
-            break
-
-        elif command == "HELP":
-            print("Available commands:")
-            print(
-                "  LIST [server_dir] - List files on server (optionally in specific directory)")
-            print("  UPLOAD <filename> - Upload a file to server root")
-            print(
-                "  UPLOAD -d <local_dir> <filename> - Upload from specified local directory")
-            print(
-                "  UPLOAD_TO <server_dir> <filename> - Upload to specified server directory")
-            print(
-                "  UPLOAD_TO <server_dir> <filename> -d <local_dir> - Upload from local dir to server dir")
-            print("  DOWNLOAD <filename> - Download a file to client_files directory")
-            print(
-                "  DOWNLOAD -d <local_dir> <filename> - Download to specified local directory")
-            print(
-                "  DOWNLOAD_FROM <server_dir> <filename> - Download from specified server directory")
-            print(
-                "  DOWNLOAD_FROM <server_dir> <filename> -d <local_dir> - Download from server to local dir")
-            print(
-                "  UPLOAD_ALL [local_dir] - Upload all files from local directory (default: client_files)")
-            print(
-                "  DOWNLOAD_ALL [local_dir] - Download all files to local directory (default: client_files)")
-            print(
-                "  UPLOAD_ALL_TO <server_dir> [local_dir] - Upload all files to server directory")
-            print(
-                "  DOWNLOAD_ALL_FROM <server_dir> [local_dir] - Download all files from server directory")
-            print(
-                "  DOWNLOAD_THUMBNAILS_FROM <server_dir> [local_dir] - Download all thumbnails from server directory")
-            print("  HELP - Show this help message")
-            print("  QUIT - Exit the FTP client")
-
-        else:
-            print("Invalid command! Type HELP for available commands.")
-
-    sock.close()
+    except ConnectionRefusedError:
+        print("Connection to the server failed. Make sure the server is running and the address is correct.")
+    except ConnectionResetError:
+        print("Connection was reset by the server. The server may have closed the connection.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+    finally:
+        sock.close()
 
 
 if __name__ == "__main__":
