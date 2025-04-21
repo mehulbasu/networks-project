@@ -2,6 +2,8 @@ import socket
 import os
 import threading
 
+# TODO: Add acknowledgement system for commands
+
 HOST = "0.0.0.0"  # Listen on all available interfaces
 PORT = 2121
 UPLOAD_FOLDER = "server_files/"

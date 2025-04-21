@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { SimpleGrid, Image, Text, Loader, Center, Paper, AspectRatio, Button, Group, TextInput } from '@mantine/core';
-import { IconServer, IconRefresh } from '@tabler/icons-react';
+import { SimpleGrid, Image, Text, Loader, Center, Paper, AspectRatio, Button, Group, TextInput, ActionIcon, Tooltip, Modal } from '@mantine/core';
+import { IconServer, IconRefresh, IconTrash, IconX } from '@tabler/icons-react';
 import { auth } from '../../utils/firebase';
+import { notifications } from '@mantine/notifications';
 
 function GalleryView() {
   const [images, setImages] = useState([]);
@@ -10,6 +11,8 @@ function GalleryView() {
   const [ftpServer, setFtpServer] = useState("");
   const [ftpPort, setFtpPort] = useState("2121");
   const [showServerConfig, setShowServerConfig] = useState(false);
+  const [deletingImages, setDeletingImages] = useState({});
+  const [confirmDelete, setConfirmDelete] = useState(null);
   
   // Get the server configuration from localStorage if available
   const savedServerRef = useRef(localStorage.getItem('ftpServer') || "");
@@ -73,6 +76,69 @@ function GalleryView() {
       setError(`Failed to load images: ${err.message}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const deleteImage = async (filename) => {
+    if (!auth.currentUser) {
+      notifications.show({
+        title: 'Error',
+        message: 'You must be logged in to delete images',
+        color: 'red',
+        icon: <IconX />
+      });
+      return;
+    }
+
+    const userId = auth.currentUser.uid;
+    
+    // Mark this image as being deleted
+    setDeletingImages(prev => ({ ...prev, [filename]: true }));
+    
+    try {
+      const response = await fetch(`http://localhost:3000/download/delete`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          filename,
+          ftpServer,
+          ftpPort
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server responded with ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      notifications.show({
+        title: 'Success',
+        message: `${filename} has been deleted`,
+        color: 'green'
+      });
+      
+      // Refresh the image list
+      fetchUserImages();
+    } catch (err) {
+      console.error('Error deleting image:', err);
+      notifications.show({
+        title: 'Error',
+        message: `Failed to delete image: ${err.message}`,
+        color: 'red',
+        icon: <IconX />
+      });
+    } finally {
+      // Clear deleting state
+      setDeletingImages(prev => {
+        const updated = {...prev};
+        delete updated[filename];
+        return updated;
+      });
+      setConfirmDelete(null);
     }
   };
 
@@ -142,17 +208,36 @@ function GalleryView() {
               shadow="sm"
               p="xs"
               withBorder
-              style={{ cursor: 'pointer' }}
-              onClick={() => window.open(image.url, '_blank')}
             >
-              <AspectRatio ratio={1}>
-                <Image
-                  src={image.url}
-                  alt={image.name}
-                  fit="cover"
-                  radius="sm"
-                />
-              </AspectRatio>
+              <div style={{ position: 'relative' }}>
+                <AspectRatio ratio={1}>
+                  <Image
+                    src={image.url}
+                    alt={image.name}
+                    fit="cover"
+                    radius="sm"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => window.open(image.url, '_blank')}
+                  />
+                </AspectRatio>
+                <Tooltip label="Delete image">
+                  <ActionIcon 
+                    color="red" 
+                    variant="filled" 
+                    size="md"
+                    style={{ 
+                      position: 'absolute', 
+                      top: '8px', 
+                      right: '8px',
+                      zIndex: 10 
+                    }}
+                    loading={deletingImages[image.name]}
+                    onClick={() => setConfirmDelete(image)}
+                  >
+                    <IconTrash size="1rem" />
+                  </ActionIcon>
+                </Tooltip>
+              </div>
               <Text size="sm" mt="xs" align="center" lineClamp={1}>
                 {image.name}
               </Text>
@@ -160,6 +245,30 @@ function GalleryView() {
           ))}
         </SimpleGrid>
       )}
+
+      {/* Confirmation Modal */}
+      <Modal
+        opened={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        title="Confirm Deletion"
+        centered
+      >
+        <Text mb="md">
+          Are you sure you want to delete the image "{confirmDelete?.name}"? This action cannot be undone.
+        </Text>
+        <Group position="right">
+          <Button variant="outline" onClick={() => setConfirmDelete(null)}>
+            Cancel
+          </Button>
+          <Button 
+            color="red" 
+            onClick={() => deleteImage(confirmDelete?.name)}
+            loading={confirmDelete && deletingImages[confirmDelete.name]}
+          >
+            Delete
+          </Button>
+        </Group>
+      </Modal>
     </div>
   );
 }

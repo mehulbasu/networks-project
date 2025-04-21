@@ -317,4 +317,83 @@ router.get('/file/:userId/:filename', async (req, res) => {
     }
 });
 
+// Endpoint to delete a file from the FTP server
+router.delete('/delete', async (req, res) => {
+    const { userId, filename, ftpServer, ftpPort } = req.body;
+  
+    if (!userId || !filename || !ftpServer || !ftpPort) {
+      return res.status(400).json({ error: 'Missing required parameters' });
+    }
+  
+    let socket;
+    try {
+      console.log(`Deleting file ${filename} from ${userId} directory`);
+      // Connect to FTP server
+      socket = net.createConnection(parseInt(ftpPort), ftpServer);
+  
+      // Wait for welcome message
+      const welcomeMessage = await new Promise((resolve, reject) => {
+        socket.once('data', data => {
+          console.log('FTP Server: ' + data.toString());
+          resolve(data.toString());
+        });
+        socket.once('error', reject);
+        socket.once('close', () => reject(new Error('Connection closed')));
+      });
+      
+      console.log(`Received welcome: ${welcomeMessage.trim()}`);
+  
+      // Send DELETE_FROM command
+      console.log(`Sending command: DELETE_FROM ${userId} ${filename}`);
+      socket.write(`DELETE_FROM ${userId} ${filename}\n`);
+      
+      // Get response
+      const response = await new Promise((resolve) => {
+        socket.once('data', data => {
+          resolve(data.toString().trim());
+        });
+      });
+      
+      console.log(`Delete response: ${response}`);
+  
+      // Send QUIT command
+      console.log("Sending QUIT command");
+      socket.write('QUIT\n');
+      
+      // Wait briefly for server to process QUIT
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      socket.end();
+      console.log("Socket ended");
+  
+      // Check response
+      if (response.includes('deleted successfully')) {
+        res.json({ success: true, message: response });
+      } else {
+        res.status(404).json({ success: false, message: response });
+      }
+    } catch (error) {
+      console.error('FTP delete error:', error);
+      
+      if (socket) {
+        try {
+          socket.write('QUIT\n');
+          setTimeout(() => {
+            try {
+              socket.end();
+            } catch (e) { /* ignore */ }
+          }, 500);
+        } catch (e) {
+          // Ignore socket close errors
+        }
+      }
+  
+      res.status(500).json({
+        success: false,
+        message: 'Failed to delete file from FTP server',
+        error: error.message
+      });
+    }
+  });
+
 module.exports = router;
