@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { FileButton, Button, Group, Text, Progress, Stack, Notification, TextInput } from '@mantine/core';
 import { IconUpload, IconCheck, IconX, IconServer } from '@tabler/icons-react';
 import { auth } from '../utils/firebase';
@@ -21,6 +21,16 @@ function UploadButton() {
     if (savedServerRef.current) setFtpServer(savedServerRef.current);
     if (savedPortRef.current) setFtpPort(savedPortRef.current);
   }, []);
+
+  // If all upload progress is 100%, reset the progress state and set uploading to false
+  // This is a workaround to avoid showing 100% progress indefinitely
+  useEffect(() => {
+    if (Object.values(uploadProgress).every(progress => progress === 100)) {
+      // setTimeout(() => {
+        setUploading(false);
+      // }, 2000);
+    }
+  }, [uploadProgress]);
 
   const handleUpload = async () => {
     if (files.length === 0 || !auth.currentUser) return;
