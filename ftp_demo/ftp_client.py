@@ -1,7 +1,7 @@
 import socket
 import os
 
-SERVER_IP = "192.168.0.172"  # Replace with the server's IP address
+SERVER_IP = "24.240.36.203"  # Replace with the server's IP address
 PORT = 2121
 CLIENT_FILES_DIR = "client_files"
 
