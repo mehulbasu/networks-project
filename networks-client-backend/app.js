@@ -19,9 +19,10 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// In your app.js
 const uploadRouter = require('./uploads');
 app.use('/upload', uploadRouter);
+const downloadRouter = require('./downloads');
+app.use('/download', downloadRouter);
 
 /* GET home page. */
 app.get('/', function(req, res, next) {
