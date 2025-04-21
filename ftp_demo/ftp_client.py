@@ -1,7 +1,7 @@
 import socket
 import os
 
-SERVER_IP = "192.168.0.172"  # Replace with the server's IP address
+SERVER_IP = ""  # Replace with the server's IP address
 PORT = 2121
 CLIENT_FILES_DIR = "client_files"
 
@@ -249,6 +249,49 @@ def download_all_files_from_server_dir(sock, server_directory, local_directory=C
             sock, server_directory, filename, local_directory)
 
 
+def download_thumbnails_from_server_dir(sock, server_directory, local_directory=CLIENT_FILES_DIR):
+    """Download all thumbnail files from a specific server directory's thumbnails subdirectory"""
+    # Create local directory if it doesn't exist
+    if not os.path.exists(local_directory):
+        os.makedirs(local_directory)
+        print(f"Created directory: {local_directory}")
+
+    # Send command to request thumbnails
+    send_command(sock, f"DOWNLOAD_THUMBNAILS_FROM {server_directory}")
+
+    # Get number of thumbnail files
+    num_files = int(sock.recv(1024).decode())
+    if num_files == 0:
+        print(f"No thumbnail files found in server directory '{server_directory}'")
+        return
+
+    print(f"Found {num_files} thumbnail files to download")
+    sock.send(b"READY")
+
+    for _ in range(num_files):
+        # Get filename and size
+        file_info = sock.recv(1024).decode().split(":")
+        filename, file_size = file_info[0], int(file_info[1])
+
+        print(f"Downloading thumbnail {filename}...")
+        sock.send(b"READY")
+
+        filepath = os.path.join(local_directory, filename)
+        bytes_received = 0
+        with open(filepath, "wb") as f:
+            while bytes_received < file_size:
+                bytes_to_read = min(4096, file_size - bytes_received)
+                data = sock.recv(bytes_to_read)
+                if not data:
+                    break
+                f.write(data)
+                bytes_received += len(data)
+
+        sock.send(b"NEXT")
+
+    print(sock.recv(1024).decode())
+
+
 def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((SERVER_IP, PORT))
@@ -411,36 +454,16 @@ def main():
             else:
                 print(
                     "Usage: DOWNLOAD_FROM <server_dir> <filename> [-d <local_dir>]")
-
-        elif command.startswith("UPLOAD"):
-            parts = command.split()
+                
+        elif command.startswith("DOWNLOAD_THUMBNAILS_FROM"):
+            # Format: DOWNLOAD_THUMBNAILS_FROM server_dir [local_dir]
+            parts = command.split(" ", 2)
             if len(parts) >= 2:
-                if len(parts) >= 3 and parts[1] == "-d":
-                    # Format: UPLOAD -d directory filename
-                    directory = parts[2]
-                    filename = " ".join(parts[3:])
-                    upload_file(sock, filename, directory)
-                else:
-                    # Format: UPLOAD filename
-                    filename = " ".join(parts[1:])
-                    upload_file(sock, filename)
+                server_dir = parts[1]
+                local_dir = parts[2] if len(parts) > 2 else CLIENT_FILES_DIR
+                download_thumbnails_from_server_dir(sock, server_dir, local_dir)
             else:
-                print("Usage: UPLOAD <filename> or UPLOAD -d <directory> <filename>")
-
-        elif command.startswith("DOWNLOAD"):
-            parts = command.split()
-            if len(parts) >= 2:
-                if len(parts) >= 3 and parts[1] == "-d":
-                    # Format: DOWNLOAD -d directory filename
-                    directory = parts[2]
-                    filename = " ".join(parts[3:])
-                    download_file(sock, filename, directory)
-                else:
-                    # Format: DOWNLOAD filename
-                    filename = " ".join(parts[1:])
-                    download_file(sock, filename)
-            else:
-                print("Usage: DOWNLOAD <filename> or DOWNLOAD -d <directory> <filename>")
+                print("Usage: DOWNLOAD_THUMBNAILS_FROM <server_dir> [local_dir]")
 
         elif command == "QUIT":
             send_command(sock, "QUIT")
@@ -473,6 +496,8 @@ def main():
                 "  UPLOAD_ALL_TO <server_dir> [local_dir] - Upload all files to server directory")
             print(
                 "  DOWNLOAD_ALL_FROM <server_dir> [local_dir] - Download all files from server directory")
+            print(
+                "  DOWNLOAD_THUMBNAILS_FROM <server_dir> [local_dir] - Download all thumbnails from server directory")
             print("  HELP - Show this help message")
             print("  QUIT - Exit the FTP client")
 
