@@ -247,6 +247,12 @@ def download_all_files_from_server_dir(sock, server_directory, local_directory=C
         print(f"Downloading {filename}...")
         download_file_from_server_dir(
             sock, server_directory, filename, local_directory)
+        
+def delete_file_from_server_dir(sock, server_directory, filename):
+    """Delete a file from a specific directory on the server"""
+    sock.send(f"DELETE_FROM {server_directory} {filename}".encode())
+    response = sock.recv(1024).decode()
+    print(response)
 
 
 def main():
@@ -441,6 +447,16 @@ def main():
                     download_file(sock, filename)
             else:
                 print("Usage: DOWNLOAD <filename> or DOWNLOAD -d <directory> <filename>")
+                
+        elif command.startswith("DELETE_FROM"):
+            # Format: DELETE_FROM server_dir filename
+            parts = command.split(" ", 2)
+            if len(parts) >= 3:
+                server_dir = parts[1]
+                filename = parts[2]
+                delete_file_from_server_dir(sock, server_dir, filename)
+            else:
+                print("Usage: DELETE_FROM <server_dir> <filename>")
 
         elif command == "QUIT":
             send_command(sock, "QUIT")
@@ -473,6 +489,7 @@ def main():
                 "  UPLOAD_ALL_TO <server_dir> [local_dir] - Upload all files to server directory")
             print(
                 "  DOWNLOAD_ALL_FROM <server_dir> [local_dir] - Download all files from server directory")
+            print("  DELETE_FROM <server_dir> <filename> - Delete a file from specified server directory")
             print("  HELP - Show this help message")
             print("  QUIT - Exit the FTP client")
 
