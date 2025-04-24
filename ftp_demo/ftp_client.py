@@ -247,60 +247,6 @@ def download_all_files_from_server_dir(sock, server_directory, local_directory=C
             sock, server_directory, filename, local_directory)
 
 
-def download_thumbnails_from_server_dir(sock, server_directory, local_directory=CLIENT_FILES_DIR):
-    """Download all thumbnail files from a specific server directory's thumbnails subdirectory"""
-    # Create local directory if it doesn't exist
-    if not os.path.exists(local_directory):
-        os.makedirs(local_directory)
-        print(f"Created directory: {local_directory}")
-
-    # Send command to request thumbnails
-    send_command(sock, f"DOWNLOAD_THUMBNAILS_FROM {server_directory}")
-
-    try:
-        # Get number of thumbnail files
-        response = sock.recv(1024).decode()
-        # Check if server returned an error message
-        if "Invalid" in response or "Error" in response:
-            print(f"Server error: {response}")
-            return
-            
-        num_files = int(response)
-        if num_files == 0:
-            print(f"No thumbnail files found in server directory '{server_directory}'")
-            return
-
-        print(f"Found {num_files} thumbnail files to download")
-        sock.send(b"READY")
-
-        for _ in range(num_files):
-            # Get filename and size
-            file_info = sock.recv(1024).decode().split(":")
-            filename, file_size = file_info[0], int(file_info[1])
-
-            print(f"Downloading thumbnail {filename}...")
-            sock.send(b"READY")
-
-            filepath = os.path.join(local_directory, filename)
-            bytes_received = 0
-            with open(filepath, "wb") as f:
-                while bytes_received < file_size:
-                    bytes_to_read = min(4096, file_size - bytes_received)
-                    data = sock.recv(bytes_to_read)
-                    if not data:
-                        break
-                    f.write(data)
-                    bytes_received += len(data)
-
-            sock.send(b"NEXT")
-
-        print(sock.recv(1024).decode())
-    except ValueError as e:
-        print(f"Error processing server response: {e}")
-    except Exception as e:
-        print(f"Error during thumbnail download: {e}")
-
-
 def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
@@ -311,17 +257,7 @@ def main():
             command = input("ftp> ").strip()
 
             # Process most specific commands first, then more general ones
-            if command.startswith("DOWNLOAD_THUMBNAILS_FROM"):
-                # Format: DOWNLOAD_THUMBNAILS_FROM server_dir [local_dir]
-                parts = command.split(" ", 2)
-                if len(parts) >= 2:
-                    server_dir = parts[1]
-                    local_dir = parts[2] if len(parts) > 2 else CLIENT_FILES_DIR
-                    download_thumbnails_from_server_dir(sock, server_dir, local_dir)
-                else:
-                    print("Usage: DOWNLOAD_THUMBNAILS_FROM <server_dir> [local_dir]")
-            
-            elif command.startswith("DOWNLOAD_ALL_FROM"):
+            if command.startswith("DOWNLOAD_ALL_FROM"):
                 # Format: DOWNLOAD_ALL_FROM server_dir [local_dir]
                 parts = command.split(" ", 2)
                 if len(parts) >= 2:
@@ -513,8 +449,6 @@ def main():
                     "  DOWNLOAD_ALL_FROM <server_dir> [local_dir] - Download all files from server directory")
                 print(
                     "  DELETE_FROM <server_dir> <filename> - Delete a file from specified server directory")
-                print(
-                    "  DOWNLOAD_THUMBNAILS_FROM <server_dir> [local_dir] - Download all thumbnails from server directory")
                 print("  HELP - Show this help message")
                 print("  QUIT - Exit the FTP client")
 

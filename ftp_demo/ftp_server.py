@@ -1,7 +1,7 @@
 import socket
 import os
 import threading
-from image_compression import create_thumbnail, is_image_file, compress_image
+from image_compression import create_thumbnail, is_image_file
 
 HOST = "0.0.0.0"  # Listen on all available interfaces
 PORT = 2121
@@ -231,53 +231,6 @@ def handle_client(client_socket, addr):
                     response = client_socket.recv(1024)
 
                 client_socket.send(b"All files downloaded successfully!\n")
-
-            elif command.startswith("DOWNLOAD_THUMBNAILS_FROM"):
-                # Format: DOWNLOAD_THUMBNAILS_FROM directory
-                parts = command.split(" ", 1)
-                if len(parts) < 2:
-                    client_socket.send(b"Invalid command format\n")
-                    continue
-
-                directory = parts[1]
-
-                # Security check
-                if not is_safe_path(UPLOAD_FOLDER, directory):
-                    client_socket.send(b"Invalid directory path\n")
-                    continue
-
-                # Look specifically in the thumbnails subdirectory
-                thumbnails_dir = os.path.join(UPLOAD_FOLDER, directory, "thumbnails")
-                
-                # Check if the thumbnails directory exists
-                if not os.path.exists(thumbnails_dir) or not os.path.isdir(thumbnails_dir):
-                    client_socket.send(b"0")  # No thumbnails to send
-                    continue
-
-                # List only files in the thumbnails directory
-                files = [f for f in os.listdir(thumbnails_dir) if os.path.isfile(
-                    os.path.join(thumbnails_dir, f))]
-                
-                client_socket.send(str(len(files)).encode())
-                response = client_socket.recv(1024)  # Wait for client ready
-
-                for filename in files:
-                    filepath = os.path.join(thumbnails_dir, filename)
-                    file_size = os.path.getsize(filepath)
-
-                    # Send filename and size
-                    client_socket.send(f"{filename}:{file_size}".encode())
-                    response = client_socket.recv(1024)  # Wait for client ready
-
-                    # Send file data
-                    with open(filepath, "rb") as f:
-                        while chunk := f.read(4096):
-                            client_socket.send(chunk)
-
-                    # Wait for next file signal
-                    response = client_socket.recv(1024)
-
-                client_socket.send(b"All thumbnail files downloaded successfully!\n")
                     
             elif command.startswith("DELETE_FROM"):
                 # Format: DELETE_FROM directory filename
