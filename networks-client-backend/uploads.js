@@ -56,13 +56,7 @@ router.post('/', upload.array('files'), async (req, res) => {
         console.log(`Got welcome message: ${welcomeMessage.trim()}`);
 
         // Use UPLOAD_ALL_TO for batch upload
-        console.log(`Sending command: UPLOAD_ALL_TO ${userId}`);
-        socket.write(`UPLOAD_ALL_TO ${userId}\n`);
-        
-        // Send number of files
-        console.log(`Sending file count: ${files.length}`);
-        socket.write(`${files.length}\n`);
-        
+        socket.write(`UPLOAD_ALL_TO ${userId} ${files.length}\n`);
         // Wait for server ready
         const readyResponse = await new Promise((resolve) => {
             socket.once('data', data => {

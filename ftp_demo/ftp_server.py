@@ -101,15 +101,20 @@ def handle_client(client_socket, addr):
 
                 client_socket.send(
                     f"File uploaded successfully to {directory}!\n".encode())
-            
+
             elif command.startswith("UPLOAD_ALL_TO"):
                 # Format: UPLOAD_ALL_TO directory
-                parts = command.split(" ", 1)
-                if len(parts) < 2:
+                parts = command.split(" ")
+                if len(parts) < 3:
                     client_socket.send(b"Invalid command format\n")
                     continue
 
                 directory = parts[1]
+                try:
+                    num_files = int(parts[2])
+                except ValueError:
+                    client_socket.send(b"Invalid number of files\n")
+                    continue
 
                 # Security check
                 if not is_safe_path(UPLOAD_FOLDER, directory):
@@ -122,7 +127,7 @@ def handle_client(client_socket, addr):
                     os.makedirs(server_dir)
 
                 # Get number of files from client
-                num_files = int(client_socket.recv(1024).decode())
+                # num_files = int(client_socket.recv(1024).decode())
                 client_socket.send(b"READY")
 
                 for _ in range(num_files):
@@ -231,7 +236,7 @@ def handle_client(client_socket, addr):
                     response = client_socket.recv(1024)
 
                 client_socket.send(b"All files downloaded successfully!\n")
-                    
+
             elif command.startswith("DELETE_FROM"):
                 # Format: DELETE_FROM directory filename
                 parts = command.split(" ", 2)
@@ -252,9 +257,11 @@ def handle_client(client_socket, addr):
                 if os.path.exists(filepath) and os.path.isfile(filepath):
                     try:
                         os.remove(filepath)
-                        client_socket.send(f"File {filename} deleted successfully from {directory}!\n".encode())
+                        client_socket.send(
+                            f"File {filename} deleted successfully from {directory}!\n".encode())
                     except Exception as e:
-                        client_socket.send(f"Error deleting file: {str(e)}\n".encode())
+                        client_socket.send(
+                            f"Error deleting file: {str(e)}\n".encode())
                 else:
                     client_socket.send(b"File not found\n")
 
