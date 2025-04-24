@@ -2,6 +2,7 @@ import socket
 import os
 
 SERVER_IP = ""  # Replace with the server's IP address
+SERVER_IP = "24.240.36.203"  # Replace with the server's IP address
 PORT = 2121
 CLIENT_FILES_DIR = "client_files"
 
@@ -474,6 +475,16 @@ def main():
                 else:
                     send_command(sock, "LIST")
                 print(sock.recv(4096).decode())
+                
+            elif command.startswith("DELETE_FROM"):
+                # Format: DELETE_FROM server_dir filename
+                parts = command.split(" ", 2)
+                if len(parts) >= 3:
+                    server_dir = parts[1]
+                    filename = parts[2]
+                    delete_file_from_server_dir(sock, server_dir, filename)
+                else:
+                    print("Usage: DELETE_FROM <server_dir> <filename>")
 
             elif command == "QUIT":
                 send_command(sock, "QUIT")
@@ -500,6 +511,8 @@ def main():
                     "  UPLOAD_ALL_TO <server_dir> [local_dir] - Upload all files to server directory")
                 print(
                     "  DOWNLOAD_ALL_FROM <server_dir> [local_dir] - Download all files from server directory")
+                print(
+                    "  DELETE_FROM <server_dir> <filename> - Delete a file from specified server directory")
                 print(
                     "  DOWNLOAD_THUMBNAILS_FROM <server_dir> [local_dir] - Download all thumbnails from server directory")
                 print("  HELP - Show this help message")

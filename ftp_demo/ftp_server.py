@@ -278,6 +278,32 @@ def handle_client(client_socket, addr):
                     response = client_socket.recv(1024)
 
                 client_socket.send(b"All thumbnail files downloaded successfully!\n")
+                    
+            elif command.startswith("DELETE_FROM"):
+                # Format: DELETE_FROM directory filename
+                parts = command.split(" ", 2)
+                if len(parts) < 3:
+                    client_socket.send(b"Invalid command format\n")
+                    continue
+
+                directory = parts[1]
+                filename = parts[2]
+
+                # Security check
+                if not is_safe_path(UPLOAD_FOLDER, directory):
+                    client_socket.send(b"Invalid directory path\n")
+                    continue
+
+                filepath = os.path.join(UPLOAD_FOLDER, directory, filename)
+
+                if os.path.exists(filepath) and os.path.isfile(filepath):
+                    try:
+                        os.remove(filepath)
+                        client_socket.send(f"File {filename} deleted successfully from {directory}!\n".encode())
+                    except Exception as e:
+                        client_socket.send(f"Error deleting file: {str(e)}\n".encode())
+                else:
+                    client_socket.send(b"File not found\n")
 
             elif command.startswith("QUIT"):
                 client_socket.send(b"Goodbye!\n")

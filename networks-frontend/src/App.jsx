@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import '@mantine/core/styles.css';
+import '@mantine/notifications/styles.css';
 import { MantineProvider } from '@mantine/core';
 import RequireAuth from './RequireAuth';
 import Home from './components/Home'
