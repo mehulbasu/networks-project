@@ -4,13 +4,13 @@ import { IconRefresh, IconTrash, IconX } from '@tabler/icons-react';
 import { auth } from '../../utils/firebase';
 import { notifications } from '@mantine/notifications';
 
-function GalleryView( { ftpServer, ftpPort, setShowServerConfig } ) {
+function GalleryView({ ftpServer, ftpPort, setShowServerConfig }) {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [deletingImages, setDeletingImages] = useState({});
   const [confirmDelete, setConfirmDelete] = useState(null);
-  
+
   const fetchUserImages = async () => {
     if (!auth.currentUser) {
       setError('You must be logged in to view images');
@@ -39,7 +39,7 @@ function GalleryView( { ftpServer, ftpPort, setShowServerConfig } ) {
       }
 
       const data = await response.json();
-      
+
       if (!data.files || data.files.length === 0) {
         setImages([]);
         setLoading(false);
@@ -74,10 +74,10 @@ function GalleryView( { ftpServer, ftpPort, setShowServerConfig } ) {
     }
 
     const userId = auth.currentUser.uid;
-    
+
     // Mark this image as being deleted
     setDeletingImages(prev => ({ ...prev, [filename]: true }));
-    
+
     try {
       const response = await fetch(`http://localhost:3000/download/delete`, {
         method: 'DELETE',
@@ -97,13 +97,13 @@ function GalleryView( { ftpServer, ftpPort, setShowServerConfig } ) {
       }
 
       const result = await response.json();
-      
+
       notifications.show({
         title: 'Success',
         message: `${filename} has been deleted`,
         color: 'green'
       });
-      
+
       // Refresh the image list
       fetchUserImages();
     } catch (err) {
@@ -117,7 +117,7 @@ function GalleryView( { ftpServer, ftpPort, setShowServerConfig } ) {
     } finally {
       // Clear deleting state
       setDeletingImages(prev => {
-        const updated = {...prev};
+        const updated = { ...prev };
         delete updated[filename];
         return updated;
       });
@@ -131,18 +131,18 @@ function GalleryView( { ftpServer, ftpPort, setShowServerConfig } ) {
 
   return (
     <>
-        <Button 
-          size='md'
-          radius='md'
-          m="auto"
-          w='40%'
-          variant='light'
-          leftSection={<IconRefresh size="1rem" />}
-          onClick={fetchUserImages}
-        >
-          Refresh Gallery
-        </Button>
-      
+      <Button
+        size='md'
+        radius='md'
+        m="auto"
+        w='40%'
+        variant='light'
+        leftSection={<IconRefresh size="1rem" />}
+        onClick={fetchUserImages}
+      >
+        Refresh Gallery
+      </Button>
+
       <Space h="0" />
 
       {loading ? (
@@ -167,46 +167,48 @@ function GalleryView( { ftpServer, ftpPort, setShowServerConfig } ) {
           ]}
         >
           {images.map((image) => (
-            <Paper
-              key={image.path}
-              shadow="sm"
-              p="xs"
-              withBorder
-            >
-              <div style={{ position: 'relative' }}>
-                <AspectRatio ratio={1}>
-                  <Image
-                    src={image.url}
-                    alt={image.name}
-                    fit="cover"
-                    radius="sm"
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => window.open(image.url, '_blank')}
-                  />
-                </AspectRatio>
-                <Tooltip label="Delete image">
-                  <ActionIcon 
-                    color="red" 
-                    variant="filled" 
-                    size="md"
-                    style={{ 
-                      position: 'absolute', 
-                      top: '8px', 
-                      right: '8px',
-                      zIndex: 10 
-                    }}
-                    loading={deletingImages[image.name]}
-                    onClick={() => setConfirmDelete(image)}
-                  >
-                    <IconTrash size="1rem" />
-                  </ActionIcon>
-                </Tooltip>
-              </div>
-              <Text size="sm" mt="xs" align="center" lineClamp={1}>
-                {image.name}
-              </Text>
-            </Paper>
-          ))}
+            // Skip image titled "thumbnails"
+            image.name === 'thumbnails' ? null : (
+              <Paper
+                key={image.path}
+                shadow="sm"
+                p="xs"
+                withBorder
+              >
+                <div style={{ position: 'relative' }}>
+                  <AspectRatio ratio={1}>
+                    <Image
+                      src={image.url}
+                      alt={image.name}
+                      fit="cover"
+                      radius="sm"
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => window.open(image.url, '_blank')}
+                    />
+                  </AspectRatio>
+                  <Tooltip label="Delete image">
+                    <ActionIcon
+                      color="red"
+                      variant="filled"
+                      size="md"
+                      style={{
+                        position: 'absolute',
+                        top: '8px',
+                        right: '8px',
+                        zIndex: 10
+                      }}
+                      loading={deletingImages[image.name]}
+                      onClick={() => setConfirmDelete(image)}
+                    >
+                      <IconTrash size="1rem" />
+                    </ActionIcon>
+                  </Tooltip>
+                </div>
+                <Text size="sm" mt="xs" align="center" lineClamp={1}>
+                  {image.name}
+                </Text>
+              </Paper>
+            )))}
         </SimpleGrid>
       )}
 
@@ -224,8 +226,8 @@ function GalleryView( { ftpServer, ftpPort, setShowServerConfig } ) {
           <Button variant="outline" onClick={() => setConfirmDelete(null)}>
             Cancel
           </Button>
-          <Button 
-            color="red" 
+          <Button
+            color="red"
             onClick={() => deleteImage(confirmDelete?.name)}
             loading={confirmDelete && deletingImages[confirmDelete.name]}
           >
