@@ -1,3 +1,4 @@
+import { useState, useRef } from 'react';
 import { Container, Title, Divider, Stack, Group, Button, Space } from '@mantine/core';
 import { auth } from '../utils/firebase';
 import UploadButton from './UploadButton';
@@ -5,6 +6,19 @@ import GalleryView from './Gallery/GalleryView';
 import './Dashboard.scss';
 
 function Dashboard() {
+    const [ftpServer, setFtpServer] = useState("");
+    const [ftpPort, setFtpPort] = useState("2121");
+    const [showServerConfig, setShowServerConfig] = useState(false);
+
+    // Get the server configuration from localStorage if available
+    const savedServerRef = useRef(localStorage.getItem('ftpServer') || "");
+    const savedPortRef = useRef(localStorage.getItem('ftpPort') || "2121");
+
+    // Initialize from saved values
+    useState(() => {
+        if (savedServerRef.current) setFtpServer(savedServerRef.current);
+        if (savedPortRef.current) setFtpPort(savedPortRef.current);
+    }, []);
 
     const signOut = () => {
         auth.signOut().then(() => {
@@ -22,11 +36,23 @@ function Dashboard() {
                 </Group>
                 <Stack spacing='xl'>
                     <Title ta='center'>Flix</Title>
-                    <UploadButton />
-                    <Space h="md" />
-                    <Divider label='Gallery'/>
-                    <Space h="md" />
-                    <GalleryView />
+                    <UploadButton
+                        ftpServer={ftpServer}
+                        ftpPort={ftpPort}
+                        setFtpServer={setFtpServer}
+                        setFtpPort={setFtpPort}
+                        showServerConfig={showServerConfig}
+                        setShowServerConfig={setShowServerConfig}
+                    />
+                    <Divider my='md'/>
+                    <GalleryView
+                        ftpServer={ftpServer}
+                        ftpPort={ftpPort}
+                        setFtpServer={setFtpServer}
+                        setFtpPort={setFtpPort}
+                        showServerConfig={showServerConfig}
+                        setShowServerConfig={setShowServerConfig}
+                    />
                 </Stack>
             </Container>
         </>

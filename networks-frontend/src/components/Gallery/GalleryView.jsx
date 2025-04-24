@@ -1,29 +1,16 @@
-import { useState, useEffect, useRef } from 'react';
-import { SimpleGrid, Image, Text, Loader, Center, Paper, AspectRatio, Button, Group, TextInput, ActionIcon, Tooltip, Modal } from '@mantine/core';
-import { IconServer, IconRefresh, IconTrash, IconX } from '@tabler/icons-react';
+import { useState, useEffect } from 'react';
+import { SimpleGrid, Image, Text, Loader, Center, Paper, AspectRatio, Button, Group, Space, ActionIcon, Tooltip, Modal } from '@mantine/core';
+import { IconRefresh, IconTrash, IconX } from '@tabler/icons-react';
 import { auth } from '../../utils/firebase';
 import { notifications } from '@mantine/notifications';
 
-function GalleryView() {
+function GalleryView( { ftpServer, ftpPort, setShowServerConfig } ) {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [ftpServer, setFtpServer] = useState("");
-  const [ftpPort, setFtpPort] = useState("2121");
-  const [showServerConfig, setShowServerConfig] = useState(false);
   const [deletingImages, setDeletingImages] = useState({});
   const [confirmDelete, setConfirmDelete] = useState(null);
   
-  // Get the server configuration from localStorage if available
-  const savedServerRef = useRef(localStorage.getItem('ftpServer') || "");
-  const savedPortRef = useRef(localStorage.getItem('ftpPort') || "2121");
-
-  // Initialize from saved values
-  useEffect(() => {
-    if (savedServerRef.current) setFtpServer(savedServerRef.current);
-    if (savedPortRef.current) setFtpPort(savedPortRef.current);
-  }, []);
-
   const fetchUserImages = async () => {
     if (!auth.currentUser) {
       setError('You must be logged in to view images');
@@ -37,10 +24,6 @@ function GalleryView() {
       setLoading(false);
       return;
     }
-
-    // Save FTP settings
-    localStorage.setItem('ftpServer', ftpServer);
-    localStorage.setItem('ftpPort', ftpPort);
 
     setLoading(true);
     setError(null);
@@ -147,47 +130,28 @@ function GalleryView() {
   }, []);
 
   return (
-    <div>
-      <Group mb="md">
+    <>
         <Button 
-          leftSection={<IconServer size="1rem" />}
-          onClick={() => setShowServerConfig(!showServerConfig)}
-          variant="outline"
-        >
-          {showServerConfig ? 'Hide FTP Settings' : 'FTP Settings'} 
-        </Button>
-        <Button 
+          size='md'
+          radius='md'
+          m="auto"
+          w='40%'
+          variant='light'
           leftSection={<IconRefresh size="1rem" />}
           onClick={fetchUserImages}
         >
           Refresh Gallery
         </Button>
-      </Group>
       
-      {showServerConfig && (
-        <Group grow mb="md">
-          <TextInput
-            label="FTP Server"
-            placeholder="24.240.36.203"
-            value={ftpServer}
-            onChange={(e) => setFtpServer(e.target.value)}
-          />
-          <TextInput
-            label="Port"
-            placeholder="2121"
-            value={ftpPort}
-            onChange={(e) => setFtpPort(e.target.value)}
-          />
-        </Group>
-      )}
-      
+      <Space h="0" />
+
       {loading ? (
         <Center style={{ height: 200 }}>
           <Loader size="lg" />
         </Center>
       ) : error ? (
         <Center>
-          <Text color="red">{error}</Text>
+          <Text c="red">{error}</Text>
         </Center>
       ) : images.length === 0 ? (
         <Center style={{ height: 200 }}>
@@ -269,7 +233,7 @@ function GalleryView() {
           </Button>
         </Group>
       </Modal>
-    </div>
+    </>
   );
 }
 

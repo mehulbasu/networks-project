@@ -1,33 +1,20 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { FileButton, Button, Group, Text, Progress, Stack, Notification, TextInput } from '@mantine/core';
 import { IconUpload, IconCheck, IconX, IconServer } from '@tabler/icons-react';
 import { auth } from '../utils/firebase';
 
-function UploadButton() {
+function UploadButton({ ftpServer, ftpPort, setFtpServer, setFtpPort, showServerConfig, setShowServerConfig }) {
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({});
   const [uploadStatus, setUploadStatus] = useState(null);
-  const [ftpServer, setFtpServer] = useState("");
-  const [ftpPort, setFtpPort] = useState("2121");
-  const [showServerConfig, setShowServerConfig] = useState(false);
-  
-  // Get the server configuration from localStorage if available
-  const savedServerRef = useRef(localStorage.getItem('ftpServer') || "");
-  const savedPortRef = useRef(localStorage.getItem('ftpPort') || "2121");
-
-  // Initialize from saved values
-  useState(() => {
-    if (savedServerRef.current) setFtpServer(savedServerRef.current);
-    if (savedPortRef.current) setFtpPort(savedPortRef.current);
-  }, []);
 
   // If all upload progress is 100%, reset the progress state and set uploading to false
   // This is a workaround to avoid showing 100% progress indefinitely
   useEffect(() => {
     if (Object.values(uploadProgress).every(progress => progress === 100)) {
       // setTimeout(() => {
-        setUploading(false);
+      setUploading(false);
       // }, 2000);
     }
   }, [uploadProgress]);
@@ -35,36 +22,36 @@ function UploadButton() {
   const handleUpload = async () => {
     if (files.length === 0 || !auth.currentUser) return;
     if (!ftpServer) {
-      setUploadStatus({ 
-        type: 'error', 
-        message: 'Please configure the FTP server address first' 
+      setUploadStatus({
+        type: 'error',
+        message: 'Please configure the FTP server address first'
       });
       setShowServerConfig(true);
       return;
     }
-    
+
     // Save server config to localStorage
     localStorage.setItem('ftpServer', ftpServer);
     localStorage.setItem('ftpPort', ftpPort);
-    
+
     setUploading(true);
     setUploadStatus(null);
-    
+
     const userId = auth.currentUser.uid;
-    
+
     // Initialize progress for all files
     const initialProgress = {};
     files.forEach(file => {
       initialProgress[file.name] = 0;
     });
     setUploadProgress(initialProgress);
-    
+
     // Create FormData with files and metadata
     const formData = new FormData();
     files.forEach(file => {
       formData.append('files', file);
     });
-    
+
     // Add FTP connection info and userId for directory structure
     formData.append('ftpServer', ftpServer);
     formData.append('ftpPort', ftpPort);
@@ -73,66 +60,66 @@ function UploadButton() {
     try {
       // Use your backend API as a proxy to the FTP server
       const API_URL = 'http://localhost:3000/upload'; // Adjust to your actual backend URL
-      
+
       const xhr = new XMLHttpRequest();
       xhr.open('POST', API_URL, true);
-      
+
       // Track upload progress
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable) {
           const overallProgress = Math.round((event.loaded / event.total) * 100);
-          
+
           // Distribute progress equally among all files for simplicity
           const updatedProgress = {};
           files.forEach(file => {
             updatedProgress[file.name] = overallProgress;
           });
-          
+
           setUploadProgress(updatedProgress);
         }
       };
-      
+
       // Handle completion
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
           const response = JSON.parse(xhr.responseText);
-          
-          setUploadStatus({ 
-            type: 'success', 
-            message: 'Files successfully uploaded to FTP server!' 
+
+          setUploadStatus({
+            type: 'success',
+            message: 'Files successfully uploaded to FTP server!'
           });
           setFiles([]);
-          
+
           // Set all files to 100% progress
           const completeProgress = {};
           files.forEach(file => {
             completeProgress[file.name] = 100;
           });
           setUploadProgress(completeProgress);
-          
+
           setTimeout(() => setUploadProgress({}), 2000);
         } else {
           throw new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`);
         }
         setUploading(false);
       };
-      
+
       // Handle errors
       xhr.onerror = () => {
-        setUploadStatus({ 
-          type: 'error', 
-          message: 'Error connecting to server. Check your FTP settings.' 
+        setUploadStatus({
+          type: 'error',
+          message: 'Error connecting to server. Check your FTP settings.'
         });
         setUploading(false);
       };
-      
+
       xhr.send(formData);
-      
+
     } catch (error) {
       console.error("Error in FTP upload:", error);
-      setUploadStatus({ 
-        type: 'error', 
-        message: `Error uploading files: ${error.message}` 
+      setUploadStatus({
+        type: 'error',
+        message: `Error uploading files: ${error.message}`
       });
       setUploading(false);
     }
@@ -144,7 +131,7 @@ function UploadButton() {
         <FileButton onChange={setFiles} accept="image/png,image/jpeg" multiple>
           {(props) => <Button {...props} size='md' radius='md' leftSection={<IconUpload />}>Select Images</Button>}
         </FileButton>
-        
+
         <Button
           onClick={() => setShowServerConfig(!showServerConfig)}
           size='md'
@@ -172,13 +159,15 @@ function UploadButton() {
           />
         </Group>
       )}
-      
+
       {files.length > 0 && (
-        <Button 
-          onClick={handleUpload} 
-          size='md' 
-          radius='md' 
-          color="green" 
+        <Button
+          onClick={handleUpload}
+          size='md'
+          radius='md'
+          color="green"
+          m='auto'
+          w='40%'
           disabled={uploading}
         >
           Upload {files.length} {files.length === 1 ? 'file' : 'files'} to FTP Server
