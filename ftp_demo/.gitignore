@@ -1,2 +1,4 @@
 client_files/
 server_files/
+__pycache__/
+venv/
