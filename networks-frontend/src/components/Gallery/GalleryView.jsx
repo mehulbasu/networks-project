@@ -4,6 +4,65 @@ import { IconServer, IconRefresh, IconTrash, IconX } from '@tabler/icons-react';
 import { auth } from '../../utils/firebase';
 import { notifications } from '@mantine/notifications';
 
+// Component to handle image loading with thumbnail
+function ProgressiveImage({ src, thumbnailSrc, alt, ...props }) {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [currentSrc, setCurrentSrc] = useState(thumbnailSrc || src);
+  const [loadError, setLoadError] = useState(false);
+
+  useEffect(() => {
+    // Reset state if source changes
+    setIsLoaded(false);
+    setLoadError(false);
+    setCurrentSrc(thumbnailSrc || src);
+    
+    // Don't attempt to load the full image if we don't have a thumbnail
+    // This prevents unnecessary network requests for non-existent thumbnails
+    if (!thumbnailSrc && !src) return;
+    
+    // Preload the full image
+    const imageLoader = new Image();
+    
+    // When full image loads successfully, switch to it
+    imageLoader.onload = () => {
+      setCurrentSrc(src);
+      setIsLoaded(true);
+    };
+    
+    // Handle potential loading errors
+    imageLoader.onerror = () => {
+      setLoadError(true);
+      // If we have a thumbnail, keep showing it instead of a broken image
+      if (thumbnailSrc) {
+        setCurrentSrc(thumbnailSrc);
+      }
+    };
+    
+    // Start loading the full image
+    imageLoader.src = src;
+    
+    // Cleanup function
+    return () => {
+      // Cancel the image load if component unmounts
+      imageLoader.onload = null;
+      imageLoader.onerror = null;
+    };
+  }, [src, thumbnailSrc]);
+
+  return (
+    <Image
+      src={currentSrc}
+      alt={alt}
+      style={{
+        transition: 'filter 0.3s ease',
+        filter: isLoaded ? 'none' : 'blur(8px)',
+        ...props.style
+      }}
+      {...props}
+    />
+  );
+}
+
 function GalleryView() {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,12 +122,18 @@ function GalleryView() {
         return;
       }
 
-      // Create image objects with URLs pointing to our backend
-      const imageObjects = data.files.map(filename => ({
-        name: filename,
-        url: `http://localhost:3000/download/file/${userId}/${encodeURIComponent(filename)}?ftpServer=${encodeURIComponent(ftpServer)}&ftpPort=${encodeURIComponent(ftpPort)}`,
-        path: `${userId}/${filename}`,
-      }));
+      // Create image objects with both thumbnail and full URLs
+      const imageObjects = data.files.map(filename => {
+        // Create thumbnail path - thumbnails are stored in a subfolder named 'thumbnails'
+        const thumbnailFilename = `thumbnails/${filename}`;
+                
+        return {
+          name: filename,
+          url: `http://localhost:3000/download/file/${userId}/${encodeURIComponent(filename)}?ftpServer=${encodeURIComponent(ftpServer)}&ftpPort=${encodeURIComponent(ftpPort)}`,
+          thumbnailUrl: `http://localhost:3000/download/file/${userId}/${encodeURIComponent(thumbnailFilename)}?ftpServer=${encodeURIComponent(ftpServer)}&ftpPort=${encodeURIComponent(ftpPort)}`,
+          path: `${userId}/${filename}`,
+        };
+      });
 
       setImages(imageObjects);
     } catch (err) {
@@ -211,8 +276,9 @@ function GalleryView() {
             >
               <div style={{ position: 'relative' }}>
                 <AspectRatio ratio={1}>
-                  <Image
+                  <ProgressiveImage
                     src={image.url}
+                    thumbnailSrc={image.thumbnailUrl}
                     alt={image.name}
                     fit="cover"
                     radius="sm"
