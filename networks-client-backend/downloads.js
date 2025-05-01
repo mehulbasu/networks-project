@@ -108,7 +108,7 @@ router.get('/list/:userId', async (req, res) => {
     }
 });
 
-// Endpoint to download a single file from the FTP server using DOWNLOAD_ALL_FROM
+// Endpoint to download a single file from the FTP server using DOWNLOAD_FROM
 router.get('/file/:userId/:filename', async (req, res) => {
     const { userId, filename } = req.params;
     const { ftpServer, ftpPort } = req.query;
@@ -135,161 +135,59 @@ router.get('/file/:userId/:filename', async (req, res) => {
         
         console.log(`Received welcome: ${welcomeMessage.trim()}`);
 
-        // Send DOWNLOAD_ALL_FROM command (we'll handle just one file)
-        console.log(`Sending command: DOWNLOAD_ALL_FROM ${userId}`);
-        socket.write(`DOWNLOAD_ALL_FROM ${userId}\n`);
+        // Send DOWNLOAD_FROM command
+        console.log(`Sending command: DOWNLOAD_FROM ${userId} ${filename}`);
+        socket.write(`DOWNLOAD_FROM ${userId} ${filename}\n`);
         
-        // Get number of files
-        const numFilesResponse = await new Promise((resolve) => {
+        // Get file size response
+        const fileSizeResponse = await new Promise((resolve) => {
             socket.once('data', data => {
                 resolve(data.toString().trim());
             });
         });
         
-        console.log(`Number of files response: ${numFilesResponse}`);
-        const numFiles = parseInt(numFilesResponse);
+        console.log(`File size response: ${fileSizeResponse}`);
+        const fileSize = parseInt(fileSizeResponse);
         
-        if (numFiles <= 0) {
-            console.log('No files found on server');
+        if (fileSize === -1) {
+            console.log('File not found on server');
             socket.write('QUIT\n');
             setTimeout(() => socket.end(), 500);
-            return res.status(404).json({ error: 'No files found on server' });
+            return res.status(404).json({ error: 'File not found on server' });
         }
 
-        // Tell server we're ready to receive the file list
+        // Tell server we're ready to receive the file
         console.log('Sending READY');
         socket.write('READY');
-
-        // Look for our specific file in the responses
-        let targetFileInfo = null;
-        let targetFileSize = 0;
         
-        for (let i = 0; i < numFiles; i++) {
-            // Get filename and size info
-            const fileInfoResponse = await new Promise((resolve) => {
+        // Collect file data
+        let bytesReceived = 0;
+        const chunks = [];
+        
+        // Set up data handler for the file
+        while (bytesReceived < fileSize) {
+            const chunk = await new Promise((resolve) => {
                 socket.once('data', data => {
-                    resolve(data.toString().trim());
+                    resolve(data);
                 });
             });
             
-            console.log(`File info: ${fileInfoResponse}`);
-            const [currentFilename, fileSizeStr] = fileInfoResponse.split(':');
-            
-            if (currentFilename === filename) {
-                // This is the file we want
-                targetFileInfo = fileInfoResponse;
-                targetFileSize = parseInt(fileSizeStr);
-                
-                // Tell server we're ready for this specific file
-                console.log('Found target file, sending READY');
-                socket.write('READY');
-                
-                // Collect file data
-                let bytesReceived = 0;
-                const chunks = [];
-                
-                // Set up data handler for this file
-                while (bytesReceived < targetFileSize) {
-                    const chunk = await new Promise((resolve) => {
-                        socket.once('data', data => {
-                            resolve(data);
-                        });
-                    });
-                    
-                    bytesReceived += chunk.length;
-                    chunks.push(chunk);
-                    console.log(`Received ${bytesReceived}/${targetFileSize} bytes`);
-                }
-                
-                // We've got our file, tell server we're ready for next (even if we don't want it)
-                console.log('File transfer complete, sending NEXT');
-                socket.write('NEXT');
-                
-                // Skip remaining files but respond to protocol
-                for (let j = i + 1; j < numFiles; j++) {
-                    const remainingFileInfo = await new Promise((resolve) => {
-                        socket.once('data', data => {
-                            resolve(data.toString().trim());
-                        });
-                    });
-                    
-                    console.log(`Skipping file: ${remainingFileInfo}`);
-                    socket.write('READY'); // Tell server we're ready
-                    
-                    // Skip the file data by telling server we want next without reading
-                    const [_, skipFileSizeStr] = remainingFileInfo.split(':');
-                    const skipFileSize = parseInt(skipFileSizeStr);
-                    
-                    // Read and discard this file's data
-                    let skipBytesReceived = 0;
-                    while (skipBytesReceived < skipFileSize) {
-                        const skipChunk = await new Promise((resolve) => {
-                            socket.once('data', data => {
-                                resolve(data);
-                            });
-                        });
-                        skipBytesReceived += skipChunk.length;
-                    }
-                    
-                    socket.write('NEXT');
-                }
-                
-                // Get final message
-                const finalMessage = await new Promise((resolve) => {
-                    socket.once('data', data => {
-                        resolve(data.toString().trim());
-                    });
-                });
-                console.log(`Final message: ${finalMessage}`);
-                
-                // Clean up
-                console.log('Sending QUIT');
-                socket.write('QUIT\n');
-                setTimeout(() => socket.end(), 500);
-                
-                // Send file to client
-                const fileData = Buffer.concat(chunks, bytesReceived);
-                res.setHeader('Content-Type', getContentType(filename));
-                res.setHeader('Content-Length', targetFileSize);
-                res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
-                return res.end(fileData);
-            } else {
-                // Not our file, tell server we're ready but we'll skip this one
-                socket.write('READY');
-                
-                // Skip file data by reading it but not storing
-                const skipFileSize = parseInt(fileSizeStr);
-                let skipBytesReceived = 0;
-                
-                while (skipBytesReceived < skipFileSize) {
-                    const skipChunk = await new Promise((resolve) => {
-                        socket.once('data', data => {
-                            resolve(data);
-                        });
-                    });
-                    skipBytesReceived += skipChunk.length;
-                }
-                
-                // Tell server we're ready for next file
-                console.log(`Skipped file ${currentFilename}, sending NEXT`);
-                socket.write('NEXT');
-            }
+            bytesReceived += chunk.length;
+            chunks.push(chunk);
+            console.log(`Received ${bytesReceived}/${fileSize} bytes`);
         }
         
-        // If we get here, we didn't find our file
         // Clean up
-        const finalMessage = await new Promise((resolve) => {
-            socket.once('data', data => {
-                resolve(data.toString().trim());
-            });
-        });
-        console.log(`Final message: ${finalMessage}`);
-        
         console.log('Sending QUIT');
         socket.write('QUIT\n');
         setTimeout(() => socket.end(), 500);
         
-        return res.status(404).json({ error: 'Requested file not found on server' });
+        // Send file to client
+        const fileData = Buffer.concat(chunks, bytesReceived);
+        res.setHeader('Content-Type', getContentType(filename));
+        res.setHeader('Content-Length', fileSize);
+        res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+        return res.end(fileData);
 
     } catch (error) {
         console.error('FTP download error:', error);
