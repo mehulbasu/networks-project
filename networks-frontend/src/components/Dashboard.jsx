@@ -6,12 +6,12 @@ import GalleryView from './Gallery/GalleryView';
 import './Dashboard.scss';
 
 function Dashboard() {
-    const [ftpServer, setFtpServer] = useState("");
+    const [ftpServer, setFtpServer] = useState("24.240.36.203");
     const [ftpPort, setFtpPort] = useState("2121");
     const [showServerConfig, setShowServerConfig] = useState(false);
 
     // Get the server configuration from localStorage if available
-    const savedServerRef = useRef(localStorage.getItem('ftpServer') || "");
+    const savedServerRef = useRef(localStorage.getItem('ftpServer') || "24.240.36.203");
     const savedPortRef = useRef(localStorage.getItem('ftpPort') || "2121");
 
     // Initialize from saved values
