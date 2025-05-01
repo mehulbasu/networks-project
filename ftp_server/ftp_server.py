@@ -1,7 +1,6 @@
 import socket
 import os
 import threading
-from image_compression import create_thumbnail, is_image_file
 
 HOST = "0.0.0.0"  # Listen on all available interfaces
 PORT = 2121
@@ -88,17 +87,6 @@ def handle_client(client_socket, addr):
                         f.write(data)
                         bytes_received += len(data)
 
-                # After successful upload, create thumbnail if it's an image
-                if is_image_file(filepath):
-                    # Check if thumbnails directory exists, if not create it
-                    thumbnails_dir = os.path.join(server_dir, "thumbnails")
-                    if not os.path.exists(thumbnails_dir):
-                        os.makedirs(thumbnails_dir)
-                    
-                    # Create thumbnail of the uploaded image
-                    thumbnail_path = os.path.join(thumbnails_dir, filename)
-                    create_thumbnail(filepath, thumbnail_path)
-
                 client_socket.send(
                     f"File uploaded successfully to {directory}!\n".encode())
 
@@ -149,15 +137,6 @@ def handle_client(client_socket, addr):
                                 break
                             f.write(data)
                             bytes_received += len(data)
-
-                    # After successful upload, process the image if it's an image file
-                    if is_image_file(filepath):
-                        thumbnails_dir = os.path.join(server_dir, "thumbnails")
-                        if not os.path.exists(thumbnails_dir):
-                            os.makedirs(thumbnails_dir)
-                        
-                        thumbnail_path = os.path.join(thumbnails_dir, filename)
-                        create_thumbnail(filepath, thumbnail_path)
 
                     client_socket.send(b"NEXT")
 
