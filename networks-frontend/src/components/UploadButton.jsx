@@ -1,23 +1,12 @@
 import { useState, useEffect } from 'react';
-import { FileButton, Button, Group, Text, Progress, Stack, Notification, TextInput } from '@mantine/core';
+import { FileButton, Button, Group, Text, Loader, Stack, Notification, TextInput } from '@mantine/core';
 import { IconUpload, IconCheck, IconX, IconServer } from '@tabler/icons-react';
 import { auth } from '../utils/firebase';
 
 function UploadButton({ ftpServer, ftpPort, setFtpServer, setFtpPort, showServerConfig, setShowServerConfig }) {
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState({});
   const [uploadStatus, setUploadStatus] = useState(null);
-
-  // If all upload progress is 100%, reset the progress state and set uploading to false
-  // This is a workaround to avoid showing 100% progress indefinitely
-  useEffect(() => {
-    if (Object.values(uploadProgress).every(progress => progress === 100)) {
-      // setTimeout(() => {
-      setUploading(false);
-      // }, 2000);
-    }
-  }, [uploadProgress]);
 
   const handleUpload = async () => {
     if (files.length === 0 || !auth.currentUser) return;
@@ -39,13 +28,6 @@ function UploadButton({ ftpServer, ftpPort, setFtpServer, setFtpPort, showServer
 
     const userId = auth.currentUser.uid;
 
-    // Initialize progress for all files
-    const initialProgress = {};
-    files.forEach(file => {
-      initialProgress[file.name] = 0;
-    });
-    setUploadProgress(initialProgress);
-
     // Create FormData with files and metadata
     const formData = new FormData();
     files.forEach(file => {
@@ -64,21 +46,6 @@ function UploadButton({ ftpServer, ftpPort, setFtpServer, setFtpPort, showServer
       const xhr = new XMLHttpRequest();
       xhr.open('POST', API_URL, true);
 
-      // Track upload progress
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) {
-          const overallProgress = Math.round((event.loaded / event.total) * 100);
-
-          // Distribute progress equally among all files for simplicity
-          const updatedProgress = {};
-          files.forEach(file => {
-            updatedProgress[file.name] = overallProgress;
-          });
-
-          setUploadProgress(updatedProgress);
-        }
-      };
-
       // Handle completion
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
@@ -90,14 +57,6 @@ function UploadButton({ ftpServer, ftpPort, setFtpServer, setFtpPort, showServer
           });
           setFiles([]);
 
-          // Set all files to 100% progress
-          const completeProgress = {};
-          files.forEach(file => {
-            completeProgress[file.name] = 100;
-          });
-          setUploadProgress(completeProgress);
-
-          setTimeout(() => setUploadProgress({}), 2000);
         } else {
           throw new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`);
         }
@@ -174,15 +133,14 @@ function UploadButton({ ftpServer, ftpPort, setFtpServer, setFtpPort, showServer
         </Button>
       )}
 
-      {Object.entries(uploadProgress).map(([fileName, progress]) => (
-        <div key={fileName}>
-          <Group position="apart" mb={5}>
-            <Text size="sm">{fileName}</Text>
-            <Text size="sm">{progress}%</Text>
-          </Group>
-          <Progress value={progress} size="sm" mb={15} />
-        </div>
-      ))}
+      {uploading && (
+        <Group justify='center'>
+          <Loader
+            type="dots"
+          />
+          <Text size="md" >Uploading...</Text>
+        </Group>
+      )}
 
       {uploadStatus && (
         <Notification
