@@ -5,6 +5,8 @@ import threading
 HOST = "0.0.0.0"  # Listen on all available interfaces
 PORT = 2121
 UPLOAD_FOLDER = "server_files/"
+COMMAND_BUFFER = 1024
+FILE_BUFFER = 1048576  # 1 MB
 
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
@@ -24,7 +26,7 @@ def handle_client(client_socket, addr):
 
     while True:
         try:
-            command = client_socket.recv(1024).decode().strip()
+            command = client_socket.recv(COMMAND_BUFFER).decode().strip()
             if not command:
                 break
 
@@ -73,14 +75,14 @@ def handle_client(client_socket, addr):
                 filepath = os.path.join(server_dir, filename)
 
                 # Get file size from client
-                file_size = int(client_socket.recv(1024).decode().strip())
+                file_size = int(client_socket.recv(COMMAND_BUFFER).decode().strip())
                 client_socket.send(b"READY")
 
                 # Read exact number of bytes
                 bytes_received = 0
                 with open(filepath, "wb") as f:
                     while bytes_received < file_size:
-                        bytes_to_read = min(4096, file_size - bytes_received)
+                        bytes_to_read = min(FILE_BUFFER, file_size - bytes_received)
                         data = client_socket.recv(bytes_to_read)
                         if not data:
                             break
@@ -115,12 +117,12 @@ def handle_client(client_socket, addr):
                     os.makedirs(server_dir)
 
                 # Get number of files from client
-                # num_files = int(client_socket.recv(1024).decode())
+                # num_files = int(client_socket.recv(COMMAND_BUFFER).decode())
                 client_socket.send(b"READY")
 
                 for _ in range(num_files):
                     # Get filename and size
-                    file_info = client_socket.recv(1024).decode().split(":")
+                    file_info = client_socket.recv(COMMAND_BUFFER).decode().split(":")
                     filename, file_size = file_info[0], int(file_info[1])
 
                     filepath = os.path.join(server_dir, filename)
@@ -131,7 +133,7 @@ def handle_client(client_socket, addr):
                     with open(filepath, "wb") as f:
                         while bytes_received < file_size:
                             bytes_to_read = min(
-                                4096, file_size - bytes_received)
+                                FILE_BUFFER, file_size - bytes_received)
                             data = client_socket.recv(bytes_to_read)
                             if not data:
                                 break
@@ -165,10 +167,10 @@ def handle_client(client_socket, addr):
                     file_size = os.path.getsize(filepath)
                     client_socket.send(str(file_size).encode())
                     response = client_socket.recv(
-                        1024)  # Wait for client ready
+                        COMMAND_BUFFER)  # Wait for client ready
 
                     with open(filepath, "rb") as f:
-                        while chunk := f.read(4096):
+                        while chunk := f.read(FILE_BUFFER):
                             client_socket.send(chunk)
                 else:
                     client_socket.send(b"-1")  # Indicate file not found
@@ -195,7 +197,7 @@ def handle_client(client_socket, addr):
                 files = [f for f in os.listdir(server_dir) if os.path.isfile(
                     os.path.join(server_dir, f))]
                 client_socket.send(str(len(files)).encode())
-                response = client_socket.recv(1024)  # Wait for client ready
+                response = client_socket.recv(COMMAND_BUFFER)  # Wait for client ready
 
                 for filename in files:
                     filepath = os.path.join(server_dir, filename)
@@ -204,15 +206,15 @@ def handle_client(client_socket, addr):
                     # Send filename and size
                     client_socket.send(f"{filename}:{file_size}".encode())
                     response = client_socket.recv(
-                        1024)  # Wait for client ready
+                        COMMAND_BUFFER)  # Wait for client ready
 
                     # Send file data
                     with open(filepath, "rb") as f:
-                        while chunk := f.read(4096):
+                        while chunk := f.read(FILE_BUFFER):
                             client_socket.send(chunk)
 
                     # Wait for next file signal
-                    response = client_socket.recv(1024)
+                    response = client_socket.recv(COMMAND_BUFFER)
 
                 client_socket.send(b"All files downloaded successfully!\n")
 
