@@ -120,91 +120,86 @@ router.get('/file/:userId/:filename', async (req, res) => {
     let socket;
     try {
         console.log(`Downloading file ${filename} from ${userId} directory`);
-        // Connect to FTP server
         socket = net.createConnection(parseInt(ftpPort), ftpServer);
 
         // Wait for welcome message
-        const welcomeMessage = await new Promise((resolve, reject) => {
+        await new Promise((resolve, reject) => {
             socket.once('data', data => {
-                console.log('FTP Server: ' + data.toString());
-                resolve(data.toString());
+                resolve();
             });
             socket.once('error', reject);
             socket.once('close', () => reject(new Error('Connection closed')));
         });
-        
-        console.log(`Received welcome: ${welcomeMessage.trim()}`);
 
         // Send DOWNLOAD_FROM command
-        console.log(`Sending command: DOWNLOAD_FROM ${userId} ${filename}`);
         socket.write(`DOWNLOAD_FROM ${userId} ${filename}\n`);
-        
+
         // Get file size response
         const fileSizeResponse = await new Promise((resolve) => {
             socket.once('data', data => {
                 resolve(data.toString().trim());
             });
         });
-        
-        console.log(`File size response: ${fileSizeResponse}`);
+
         const fileSize = parseInt(fileSizeResponse);
-        
+
         if (fileSize === -1) {
-            console.log('File not found on server');
             socket.write('QUIT\n');
             setTimeout(() => socket.end(), 500);
             return res.status(404).json({ error: 'File not found on server' });
         }
 
         // Tell server we're ready to receive the file
-        console.log('Sending READY');
         socket.write('READY');
-        
-        // Collect file data
-        let bytesReceived = 0;
-        const chunks = [];
-        
-        // Set up data handler for the file
-        while (bytesReceived < fileSize) {
-            const chunk = await new Promise((resolve) => {
-                socket.once('data', data => {
-                    resolve(data);
-                });
-            });
-            
-            bytesReceived += chunk.length;
-            chunks.push(chunk);
-            console.log(`Received ${bytesReceived}/${fileSize} bytes`);
-        }
-        
-        // Clean up
-        console.log('Sending QUIT');
-        socket.write('QUIT\n');
-        setTimeout(() => socket.end(), 500);
-        
-        // Send file to client
-        const fileData = Buffer.concat(chunks, bytesReceived);
+
+        // Set headers before streaming
         res.setHeader('Content-Type', getContentType(filename));
         res.setHeader('Content-Length', fileSize);
         res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
-        return res.end(fileData);
+
+        // Pipe the socket directly to the response, up to fileSize bytes
+        let bytesReceived = 0;
+        socket.on('data', chunk => {
+            if (bytesReceived + chunk.length > fileSize) {
+                // Only send up to fileSize bytes
+                const remaining = fileSize - bytesReceived;
+                res.write(chunk.slice(0, remaining));
+                bytesReceived += remaining;
+                res.end();
+                socket.destroy();
+            } else {
+                res.write(chunk);
+                bytesReceived += chunk.length;
+                if (bytesReceived === fileSize) {
+                    res.end();
+                    socket.destroy();
+                }
+            }
+        });
+
+        socket.on('end', () => {
+            if (!res.writableEnded) res.end();
+        });
+
+        socket.on('error', err => {
+            if (!res.headersSent) {
+                res.status(500).json({
+                    success: false,
+                    message: 'Failed to download file from FTP server',
+                    error: err.message
+                });
+            } else {
+                res.destroy();
+            }
+        });
 
     } catch (error) {
-        console.error('FTP download error:', error);
-        
         if (socket) {
             try {
                 socket.write('QUIT\n');
-                setTimeout(() => {
-                    try {
-                        socket.end();
-                    } catch (e) { /* ignore */ }
-                }, 500);
-            } catch (e) {
-                // Ignore socket close errors
-            }
+                setTimeout(() => socket.end(), 500);
+            } catch (e) {}
         }
-
         if (!res.headersSent) {
             res.status(500).json({
                 success: false,
