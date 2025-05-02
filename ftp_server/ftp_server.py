@@ -170,8 +170,9 @@ def handle_client(client_socket, addr):
                         COMMAND_BUFFER)  # Wait for client ready
 
                     with open(filepath, "rb") as f:
-                        while chunk := f.read(FILE_BUFFER):
-                            client_socket.send(chunk)
+                        client_socket.sendall(str(file_size).encode())
+                        client_socket.recv(COMMAND_BUFFER)  # wait READY
+                        client_socket.sendfile(f)           # zero‐copy transfer
                 else:
                     client_socket.send(b"-1")  # Indicate file not found
 
@@ -210,8 +211,9 @@ def handle_client(client_socket, addr):
 
                     # Send file data
                     with open(filepath, "rb") as f:
-                        while chunk := f.read(FILE_BUFFER):
-                            client_socket.send(chunk)
+                        client_socket.sendall(str(file_size).encode())
+                        client_socket.recv(COMMAND_BUFFER)  # wait READY
+                        client_socket.sendfile(f)           # zero‐copy transfer
 
                     # Wait for next file signal
                     response = client_socket.recv(COMMAND_BUFFER)
